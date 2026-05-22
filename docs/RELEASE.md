@@ -1,23 +1,23 @@
-# Guia de release
+# Release guide
 
-Este guia é para quem vai publicar uma versão do Applications Dashboard no GitHub Releases.
+This guide is for maintainers who publish Applications Dashboard versions on GitHub Releases.
 
-## 1. Preparar o ambiente
+## 1. Prepare the environment
 
-Instale as dependências:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-Valide o projeto:
+Validate the project:
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## 2. Gerar a versão portable
+## 2. Generate the portable version
 
 Use:
 
@@ -25,78 +25,78 @@ Use:
 npm run package:win:zip
 ```
 
-O pacote será criado em:
+The portable package folder is created at:
 
 ```text
 release/APPDashboard/
 ```
 
-O `.zip` pronto para anexar será criado em:
+The ZIP file ready to attach is created at:
 
 ```text
 release/APPDashboard-windows-portable.zip
 ```
 
-O executável principal será:
+The main executable is:
 
 ```text
 release/APPDashboard/APPDashboard.exe
 ```
 
-## 3. Testar antes de publicar
+## 3. Test before publishing
 
-Abra:
+Open:
 
 ```text
 release/APPDashboard/APPDashboard.exe
 ```
 
-Confira:
+Check that:
 
-- A janela abre corretamente.
-- A lista de apps aparece.
-- O painel consegue iniciar e parar um processo de teste.
-- Os logs aparecem no painel.
+- The window opens correctly.
+- The application list appears.
+- The dashboard can start and stop a test process.
+- Logs appear in the log panel.
 
-## 4. Compactar para o GitHub
+## 4. Compress for GitHub
 
-Se você usou `npm run package:win:zip`, o arquivo já está pronto. Se preferir compactar manualmente, compacte a pasta inteira:
+If you used `npm run package:win:zip`, the ZIP file is already ready. If you prefer to compress manually, compress the entire folder:
 
 ```text
 release/APPDashboard/
 ```
 
-Nome sugerido:
+Suggested file name:
 
 ```text
 APPDashboard-windows-portable.zip
 ```
 
-Importante: não publique apenas `APPDashboard.exe`. A aplicação depende dos arquivos auxiliares do Electron que ficam na mesma pasta.
+Important: do not publish only `APPDashboard.exe`. The application depends on the Electron support files located in the same folder.
 
-## 5. Criar a release no GitHub
+## 5. Create the GitHub release
 
-No GitHub:
+On GitHub:
 
-1. Abra a aba **Releases**.
-2. Clique em **Draft a new release**.
-3. Crie uma tag, por exemplo `v1.0.0`.
-4. Anexe `APPDashboard-windows-portable.zip`.
-5. Descreva as principais mudanças e instruções de uso.
+1. Open the **Releases** tab.
+2. Click **Draft a new release**.
+3. Create a tag, for example `v1.0.0`.
+4. Attach `APPDashboard-windows-portable.zip`.
+5. Describe the main changes and usage instructions.
 
-Texto curto sugerido para a release:
+Suggested short release text:
 
 ```text
-Baixe o arquivo APPDashboard-windows-portable.zip, extraia a pasta e execute APPDashboard.exe.
+Download APPDashboard-windows-portable.zip, extract the folder, and run APPDashboard.exe.
 
-Não é necessário instalar Node.js nem baixar o código fonte para usar esta versão.
+Node.js and the source code are not required to use this release version.
 ```
 
-## Checklist de publicação
+## Publishing checklist
 
-- `npm run lint` passou.
-- `npm run build` passou.
-- `npm run package:win:full` gerou `release/APPDashboard`.
-- O executável abriu no Windows.
-- A API local respondeu em `http://127.0.0.1:3764/api/apps`.
-- O `.zip` contém a pasta completa da aplicação.
+- `npm run lint` passed.
+- `npm run build` passed.
+- `npm run package:win:zip` generated `release/APPDashboard`.
+- The executable opened on Windows.
+- The local API responded at `http://127.0.0.1:3764/api/apps`.
+- The `.zip` contains the complete application folder.

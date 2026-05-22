@@ -1,47 +1,57 @@
 # Applications Dashboard
 
-Dashboard desktop para Windows que centraliza a execução de aplicações, serviços e comandos locais que normalmente precisam ser iniciados pelo terminal.
+Windows desktop dashboard for running local applications, services, and terminal commands from a single interface.
 
-Ele foi pensado para cenários em que vários programas precisam subir em ordem, como banco de dados, backend, frontends e ferramentas auxiliares. A aplicação permite cadastrar comandos, iniciar e parar processos, acompanhar logs em tempo real e respeitar dependências entre serviços.
+It is designed for workflows where several programs need to be started often and sometimes in a specific order, such as databases, backends, frontends, and support tools. The app lets you register commands, start and stop processes, watch logs in real time, and configure dependencies between services.
 
-## Para quem só quer usar
+## Screenshots
 
-Baixe a versão mais recente na área **Releases** do GitHub.
+### Dashboard
 
-1. Faça download do arquivo `.zip` da release.
-2. Extraia a pasta em qualquer lugar do Windows.
-3. Abra `APPDashboard.exe`.
-4. Use o botão **Novo App** para cadastrar os programas que deseja executar.
+![Applications Dashboard overview](docs/images/dashboard-overview.png)
 
-Não é necessário baixar o código fonte, instalar Node.js ou rodar comandos de desenvolvimento para usar a versão release.
+### Application form
 
-## Recursos
+![Application form](docs/images/app-form.png)
 
-- Interface desktop em Electron.
-- API local em Express executada junto com o aplicativo.
-- Cadastro, edição e exclusão de aplicações.
-- Start/stop de processos locais.
-- Leitura de logs em tempo real.
-- Detecção de processo ativo por porta.
-- Encerramento de árvore de processos no Windows.
-- Suporte a dependências entre aplicações.
-- Build portable para distribuição.
+## For users who only want to run the app
 
-## Como funciona
+Download the latest version from the **Releases** section on GitHub.
 
-O painel lê as aplicações cadastradas em `apps.json`. Cada item descreve o comando, argumentos, diretório inicial, porta monitorada e dependências.
+1. Download the release `.zip` file.
+2. Extract the folder anywhere on Windows.
+3. Open `APPDashboard.exe`.
+4. Use the **Novo App** button to register the programs you want to run.
 
-Quando um app é iniciado, o servidor local:
+You do not need to download the source code, install Node.js, or run development commands to use the release version.
 
-1. Inicia primeiro as dependências configuradas em `dependsOn`.
-2. Verifica se a porta já está em uso, quando uma porta foi informada.
-3. Executa o comando no diretório configurado.
-4. Envia stdout/stderr para o visualizador de logs.
-5. Permite parar o processo pelo painel.
+## Features
 
-## Configuração dos apps
+- Electron desktop interface.
+- Local Express API started together with the desktop app.
+- Create, edit, and delete application entries.
+- Start and stop local processes.
+- Real-time log viewer.
+- Process status detection by port.
+- Windows process tree termination.
+- Dependency support between applications.
+- Portable Windows build for distribution.
 
-Exemplo de `apps.json`:
+## How it works
+
+The dashboard reads registered applications from `apps.json`. Each item describes the command, arguments, working directory, monitored port, and dependencies.
+
+When an application is started, the local server:
+
+1. Starts dependencies configured in `dependsOn` first.
+2. Checks whether the configured port is already in use.
+3. Runs the command in the configured working directory.
+4. Streams stdout/stderr to the log viewer.
+5. Allows the process to be stopped from the dashboard.
+
+## Application configuration
+
+Example `apps.json`:
 
 ```json
 [
@@ -58,120 +68,126 @@ Exemplo de `apps.json`:
 ]
 ```
 
-Campos principais:
+Main fields:
 
-- `id`: identificador único usado internamente e em dependências.
-- `name`: nome exibido no painel.
-- `command`: executável ou comando base.
-- `args`: argumentos passados para o comando.
-- `port`: porta usada para detectar se o serviço está ativo.
-- `cwd`: diretório de execução. Pode ser absoluto ou relativo.
-- `dependsOn`: lista de `id`s que devem iniciar antes deste app.
-- `shell`: quando `true`, executa pelo shell do Windows; quando `false`, executa diretamente o programa.
+- `id`: unique identifier used internally and by dependencies.
+- `name`: display name shown in the dashboard.
+- `command`: executable or base command.
+- `args`: command arguments.
+- `port`: port used to detect whether the service is running.
+- `cwd`: working directory. It can be absolute or relative.
+- `dependsOn`: list of `id`s that must start before this application.
+- `shell`: when `true`, runs through the Windows shell; when `false`, runs the executable directly.
 
-Mais detalhes estão em [docs/CONFIGURACAO.md](docs/CONFIGURACAO.md).
+More details are available in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
-## Desenvolvimento
+## Development
 
-Requisitos:
+Requirements:
 
 - Windows
-- Node.js 20 ou superior
+- Node.js 20 or newer
 - npm
 
-Instalação:
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-Rodar em modo desenvolvimento:
+Run in development mode:
 
 ```bash
 npm run dev
 ```
 
-Gerar build de produção:
+Generate a production build:
 
 ```bash
 npm run build
 ```
 
-Validar TypeScript:
+Validate TypeScript:
 
 ```bash
 npm run lint
 ```
 
-Abrir como aplicativo desktop local:
+Open as a local desktop app:
 
 ```bash
 npm run desktop
 ```
 
-Gerar versão portable para Windows:
+Generate the portable Windows build:
 
 ```bash
 npm run package:win:full
 ```
 
-Gerar a versão portable já compactada para anexar no GitHub Releases:
+Generate the portable Windows build and ZIP file for GitHub Releases:
 
 ```bash
 npm run package:win:zip
 ```
 
-O executável será criado em:
+The executable is created at:
 
 ```text
 release/APPDashboard/APPDashboard.exe
 ```
 
-## Publicação de release
+## Release publishing
 
-Para publicar uma versão no GitHub Releases, gere o pacote portable e compacte a pasta `release/APPDashboard`.
+To publish a version on GitHub Releases, generate the portable package and attach the ZIP file created at:
 
-O usuário final deve receber o `.zip` com a pasta completa, não apenas o `.exe`, porque o Electron depende dos arquivos auxiliares que ficam ao lado do executável.
+```text
+release/APPDashboard-windows-portable.zip
+```
 
-Passo a passo recomendado em [docs/RELEASE.md](docs/RELEASE.md).
+End users must receive the full ZIP package, not only the `.exe`, because Electron depends on the support files placed next to the executable.
 
-## Scripts disponíveis
+The recommended step-by-step release process is available in [docs/RELEASE.md](docs/RELEASE.md).
 
-- `npm run dev`: inicia o servidor com Vite em modo desenvolvimento.
-- `npm run lint`: executa validação TypeScript sem emitir arquivos.
-- `npm run build`: gera frontend e servidor em `dist`.
-- `npm run start`: executa o servidor compilado em `dist/server.cjs`.
-- `npm run desktop`: gera build e abre o Electron.
-- `npm run package:win`: empacota a pasta portable usando o build atual.
-- `npm run package:win:full`: gera build e empacota a pasta portable.
-- `npm run package:win:zip`: gera build, empacota a pasta portable e cria `release/APPDashboard-windows-portable.zip`.
-- `npm run clean`: remove `dist`.
+## Available scripts
 
-## Testes realizados
+- `npm run dev`: starts the server with Vite in development mode.
+- `npm run lint`: runs TypeScript validation without emitting files.
+- `npm run build`: builds the frontend and server into `dist`.
+- `npm run start`: runs the compiled server from `dist/server.cjs`.
+- `npm run desktop`: builds the app and opens Electron.
+- `npm run package:win`: packages the portable folder using the current build.
+- `npm run package:win:full`: builds the app and packages the portable folder.
+- `npm run package:win:zip`: builds the app, packages the portable folder, and creates `release/APPDashboard-windows-portable.zip`.
+- `npm run clean`: removes `dist`.
 
-Validações feitas neste projeto:
+## Tests performed
+
+Validations performed on this project:
 
 - `npm run lint`
 - `npm run build`
-- Teste HTTP do servidor compilado em modo produção.
-- Teste funcional de iniciar/parar processo local e capturar logs.
+- HTTP test of the compiled server in production mode.
+- Functional test for starting/stopping a local process and capturing logs.
 - `npm run package:win`
-- Abertura do executável `release/APPDashboard/APPDashboard.exe` e consulta da API local.
+- `npm run package:win:zip`
+- Opened `release/APPDashboard/APPDashboard.exe` and checked the local API.
 
-## Estrutura do projeto
+## Project structure
 
 ```text
 .
-├── electron/              # Inicialização do Electron
-├── scripts/               # Scripts de empacotamento
-├── src/                   # Interface React
-├── public/                # Arquivos públicos copiados para o build
-├── server.ts              # API local e controle de processos
-├── apps.json              # Aplicações cadastradas
-├── package.json           # Scripts e dependências
-└── docs/                  # Documentação complementar
+|-- electron/              # Electron startup
+|-- scripts/               # Packaging and support scripts
+|-- src/                   # React interface
+|-- public/                # Public files copied to the build
+|-- docs/                  # Additional documentation and screenshots
+|-- server.ts              # Local API and process control
+|-- apps.json              # Registered applications
+|-- package.json           # Scripts and dependencies
+`-- README.md              # Main repository documentation
 ```
 
-## Observações de segurança
+## Security notes
 
-Este aplicativo executa comandos locais cadastrados pelo usuário. Use apenas configurações confiáveis e revise comandos antes de iniciar processos, principalmente quando `shell` estiver habilitado.
+This application executes local commands configured by the user. Only use trusted configurations and review commands before starting processes, especially when `shell` is enabled.
