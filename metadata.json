@@ -1,0 +1,6 @@
+{
+  "name": "Painel de Serviços Windows",
+  "description": "Painel de controle para gerenciar e executar aplicações e comandos do Windows localmente.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

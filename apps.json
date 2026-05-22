@@ -1,0 +1,11 @@
+[
+  {
+    "id": "ping-teste",
+    "name": "Ping Teste Internet",
+    "command": "ping",
+    "args": "8.8.8.8 -t",
+    "port": "",
+    "cwd": "",
+    "shell": true
+  }
+]
