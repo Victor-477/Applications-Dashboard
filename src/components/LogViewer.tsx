@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
-import { AppState, LogLine } from '../types';
 import { TerminalSquare, RefreshCw, Layers } from 'lucide-react';
+import { Translation } from '../i18n';
+import { AppState, LogLine } from '../types';
 
 interface LogViewerProps {
   app?: AppState;
   logs: LogLine[];
+  t: Translation;
 }
 
-export default function LogViewer({ app, logs }: LogViewerProps) {
+export default function LogViewer({ app, logs, t }: LogViewerProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,24 +36,24 @@ export default function LogViewer({ app, logs }: LogViewerProps) {
           {app.status === 'running' && (
              <div className="flex items-center text-blue-400/90 font-sans tracking-wide">
                <RefreshCw className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-               <span className="text-[11px]">RODANDO</span>
+               <span className="text-[11px]">{t.running}</span>
              </div>
           )}
         </div>
       </div>
-      
+
       <div className="flex-1 overflow-y-auto px-5 py-4 font-mono text-[13px] leading-relaxed relative">
         {logs.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600 space-y-3">
              <Layers className="w-10 h-10 opacity-20" />
-             <p className="italic text-gray-500">Aguardando logs de execução...</p>
+             <p className="italic text-gray-500">{t.waitingLogs}</p>
           </div>
         ) : (
           <div className="space-y-0.5">
             {logs.map((log) => {
               const date = new Date(log.timestamp);
               const timeString = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-              
+
               let colorClass = 'text-gray-300';
               if (log.type === 'error') colorClass = 'text-[#e06c75]';
               if (log.type === 'system') colorClass = 'text-[#61afef] opacity-90 italic';

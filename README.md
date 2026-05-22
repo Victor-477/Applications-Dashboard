@@ -21,7 +21,7 @@ Download the latest version from the **Releases** section on GitHub.
 1. Download the release `.zip` file.
 2. Extract the folder anywhere on Windows.
 3. Open `APPDashboard.exe`.
-4. Use the **Novo App** button to register the programs you want to run.
+4. Use the add application button in the header to register the programs you want to run.
 
 You do not need to download the source code, install Node.js, or run development commands to use the release version.
 
@@ -35,6 +35,7 @@ You do not need to download the source code, install Node.js, or run development
 - Process status detection by port.
 - Windows process tree termination.
 - Dependency support between applications.
+- Interface language selector with Portuguese, English, and Chinese.
 - Portable Windows build for distribution.
 
 ## How it works

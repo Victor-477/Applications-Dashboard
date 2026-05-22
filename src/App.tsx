@@ -4,11 +4,17 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Plus, Terminal, Layers } from 'lucide-react';
+import { ChevronDown, Globe2, Layers, Plus, Terminal } from 'lucide-react';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import LogViewer from './components/LogViewer';
 import { AppState, AppConfig, LogLine } from './types';
+import { isLanguage, Language, languageOptions, translations } from './i18n';
+
+function getInitialLanguage(): Language {
+  const storedLanguage = window.localStorage.getItem('app-dashboard-language');
+  return isLanguage(storedLanguage) ? storedLanguage : 'pt';
+}
 
 export default function App() {
   const [apps, setApps] = useState<AppState[]>([]);
@@ -16,10 +22,19 @@ export default function App() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({});
+  const [language, setLanguage] = useState<Language>(getInitialLanguage);
+  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const t = translations[language];
+  const selectedLanguage = languageOptions.find(option => option.code === language)!;
 
   useEffect(() => {
     fetchApps();
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem('app-dashboard-language', language);
+    document.documentElement.lang = language === 'zh' ? 'zh-CN' : language;
+  }, [language]);
 
   useEffect(() => {
     const evtSource = new EventSource('/api/stream');
@@ -137,22 +152,63 @@ export default function App() {
           </div>
           <div>
              <h1 className="text-xl font-semibold tracking-tight text-gray-900 leading-tight">Applications Dashboard</h1>
-             <p className="text-xs text-gray-500 font-medium">Windows Local Runner</p>
+             <p className="text-xs text-gray-500 font-medium">{t.appSubtitle}</p>
           </div>
         </div>
-        <button 
-          onClick={openCreateForm}
-          className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm focus:ring-2 focus:ring-blue-500/50"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Novo App</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsLanguageMenuOpen(prev => !prev)}
+              className="flex min-w-[132px] items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500/40"
+              aria-haspopup="menu"
+              aria-expanded={isLanguageMenuOpen}
+              title={t.language}
+            >
+              <span className="flex items-center gap-2">
+                <Globe2 className="h-4 w-4 text-gray-500" />
+                {selectedLanguage.label}
+              </span>
+              <ChevronDown className="h-4 w-4 text-gray-400" />
+            </button>
+            {isLanguageMenuOpen && (
+              <div className="absolute right-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white p-1 shadow-lg z-30" role="menu">
+                {languageOptions.map(option => (
+                  <button
+                    key={option.code}
+                    type="button"
+                    onClick={() => {
+                      setLanguage(option.code);
+                      setIsLanguageMenuOpen(false);
+                    }}
+                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                      option.code === language
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    role="menuitem"
+                  >
+                    <span>{option.label}</span>
+                    <span className="text-xs font-semibold text-gray-400">{option.shortLabel}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={openCreateForm}
+            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm focus:ring-2 focus:ring-blue-500/50"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t.newApp}</span>
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 flex overflow-hidden">
         <div className="w-[340px] shrink-0 border-r border-gray-200 bg-gray-50/50 flex flex-col z-10 shadow-[2px_0_8px_-4px_rgba(0,0,0,0.1)]">
           <div className="px-5 py-4 border-b border-gray-200/50 flex items-center justify-between bg-white/50 space-x-2">
-            <h2 className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">Aplicações Registradas</h2>
+            <h2 className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">{t.registeredApps}</h2>
             <div className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">
               {apps.length}
             </div>
@@ -168,6 +224,7 @@ export default function App() {
                 onStop={() => handleStop(app.config.id)}
                 onEdit={() => openEditForm(app.config)}
                 onDelete={() => handleDeleteApp(app.config.id)}
+                t={t}
               />
             ))}
             {apps.length === 0 && (
@@ -175,8 +232,8 @@ export default function App() {
                 <div className="bg-white border text-gray-400 border-gray-200 rounded-full w-14 h-14 flex items-center justify-center mb-4 shadow-sm">
                   <Layers className="w-6 h-6" />
                 </div>
-                <h3 className="text-gray-800 font-semibold text-sm mb-1">Nenhum app</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">Adicione seu primeiro aplicativo ou comando local para comeÃ§ar.</p>
+                <h3 className="text-gray-800 font-semibold text-sm mb-1">{t.noAppsTitle}</h3>
+                <p className="text-xs text-gray-500 leading-relaxed">{t.noAppsDescription}</p>
               </div>
             )}
           </div>
@@ -187,12 +244,13 @@ export default function App() {
             <LogViewer 
               app={apps.find(a => a.config.id === selectedAppId)} 
               logs={logs[selectedAppId] || []} 
+              t={t}
             />
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
               <Terminal className="w-16 h-16 mb-4 text-gray-300" />
-              <p className="font-medium text-gray-500">Nenhum aplicativo selecionado</p>
-              <p className="text-xs mt-1">Selecione um item no painel lateral para ver seus logs.</p>
+              <p className="font-medium text-gray-500">{t.noSelectedAppTitle}</p>
+              <p className="text-xs mt-1">{t.noSelectedAppDescription}</p>
             </div>
           )}
         </div>
@@ -203,9 +261,9 @@ export default function App() {
           initialConfig={editingApp}
           onClose={closeForm} 
           onSubmit={editingApp ? handleUpdateApp : handleCreateApp} 
+          t={t}
         />
       )}
     </div>
   );
 }
-

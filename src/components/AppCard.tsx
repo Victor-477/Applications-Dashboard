@@ -1,5 +1,6 @@
 import { Pencil, Play, Square, Trash2, Terminal } from 'lucide-react';
 import { AppState } from '../types';
+import { Translation } from '../i18n';
 
 interface AppCardProps {
   app: AppState;
@@ -9,9 +10,10 @@ interface AppCardProps {
   onStop: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  t: Translation;
 }
 
-export default function AppCard({ app, isSelected, onSelect, onStart, onStop, onEdit, onDelete }: AppCardProps) {
+export default function AppCard({ app, isSelected, onSelect, onStart, onStop, onEdit, onDelete, t }: AppCardProps) {
   const isRunning = app.status === 'running';
 
   return (
@@ -30,7 +32,7 @@ export default function AppCard({ app, isSelected, onSelect, onStart, onStop, on
               {app.config.name}
             </h3>
             {app.config.port && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200" title={`Porta ${app.config.port}`}>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200" title={`${t.portTitle} ${app.config.port}`}>
                 :{app.config.port}
               </span>
             )}
@@ -38,7 +40,7 @@ export default function AppCard({ app, isSelected, onSelect, onStart, onStop, on
           <div className="flex items-center space-x-1.5 mt-1.5">
             <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-300'}`} />
             <span className="text-xs text-gray-500 font-medium">
-              {isRunning ? 'Ativo' : 'Inativo'}
+              {isRunning ? t.active : t.inactive}
             </span>
           </div>
         </div>
@@ -47,14 +49,14 @@ export default function AppCard({ app, isSelected, onSelect, onStart, onStop, on
           <button
             onClick={(e) => { e.stopPropagation(); onEdit(); }}
             className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50"
-            title="Editar"
+            title={t.edit}
           >
             <Pencil className="w-4 h-4" />
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
             className="text-gray-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50"
-            title="Excluir"
+            title={t.delete}
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -73,7 +75,7 @@ export default function AppCard({ app, isSelected, onSelect, onStart, onStop, on
               className="flex items-center space-x-1.5 bg-white hover:bg-green-50 text-gray-700 hover:text-green-700 hover:border-green-200 border border-gray-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
             >
               <Play className="w-3 h-3" />
-              <span>Iniciar</span>
+              <span>{t.start}</span>
             </button>
           ) : (
             <button
@@ -81,7 +83,7 @@ export default function AppCard({ app, isSelected, onSelect, onStart, onStop, on
               className="flex items-center space-x-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
             >
               <Square className="w-3 h-3 fill-current" />
-              <span>Parar</span>
+              <span>{t.stop}</span>
             </button>
           )}
         </div>

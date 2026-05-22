@@ -1,14 +1,16 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { AppConfig } from '../types';
+import { Translation } from '../i18n';
 
 interface AppFormProps {
   onClose: () => void;
   onSubmit: (config: Partial<AppConfig>) => void;
   initialConfig?: AppConfig | null;
+  t: Translation;
 }
 
-export default function AppForm({ onClose, onSubmit, initialConfig }: AppFormProps) {
+export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppFormProps) {
   const [formData, setFormData] = useState({
     name: initialConfig?.name || '',
     command: initialConfig?.command || '',
@@ -39,106 +41,106 @@ export default function AppForm({ onClose, onSubmit, initialConfig }: AppFormPro
     <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 overflow-hidden transform transition-all">
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-          <h2 className="text-lg font-semibold text-gray-800">{initialConfig ? 'Editar Instancia' : 'Adicionar Aplicativo'}</h2>
+          <h2 className="text-lg font-semibold text-gray-800">{initialConfig ? t.form.editTitle : t.form.addTitle}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 hover:bg-white p-1.5 rounded-md transition-colors shadow-sm border border-transparent hover:border-gray-200">
             <X className="w-5 h-5" />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Nome do Aplicativo</label>
-            <input 
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.form.appName}</label>
+            <input
               required
-              type="text" 
+              type="text"
               className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-              placeholder="Ex: API de Usuários"
+              placeholder={t.form.appNamePlaceholder}
               value={formData.name}
-              onChange={e => setFormData({...formData, name: e.target.value})}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
             />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Comando ou Executável</label>
-            <input 
-              required
-              type="text" 
-              className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono transition-shadow"
-              placeholder="Ex: npm ou C:\app\server.exe"
-              value={formData.command}
-              onChange={e => setFormData({...formData, command: e.target.value})}
-            />
-            <p className="text-[11px] text-gray-500 mt-1.5">O programa base a ser executado no cmd.</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Argumentos (Opcional)</label>
-            <input 
-              type="text" 
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.form.command}</label>
+            <input
+              required
+              type="text"
               className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono transition-shadow"
-              placeholder="Ex: run start ou --port 8080"
+              placeholder={t.form.commandPlaceholder}
+              value={formData.command}
+              onChange={e => setFormData({ ...formData, command: e.target.value })}
+            />
+            <p className="text-[11px] text-gray-500 mt-1.5">{t.form.commandHelp}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.form.args}</label>
+            <input
+              type="text"
+              className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono transition-shadow"
+              placeholder={t.form.argsPlaceholder}
               value={formData.args}
-              onChange={e => setFormData({...formData, args: e.target.value})}
+              onChange={e => setFormData({ ...formData, args: e.target.value })}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Porta (Opcional)</label>
-              <input 
-                type="text" 
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.form.port}</label>
+              <input
+                type="text"
                 className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                placeholder="Ex: 8080"
+                placeholder={t.form.portPlaceholder}
                 value={formData.port}
-                onChange={e => setFormData({...formData, port: e.target.value})}
+                onChange={e => setFormData({ ...formData, port: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Diretório (Opcional)</label>
-              <input 
-                type="text" 
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.form.directory}</label>
+              <input
+                type="text"
                 className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm transition-shadow"
-                placeholder="Diretório inicial"
+                placeholder={t.form.directoryPlaceholder}
                 value={formData.cwd}
-                onChange={e => setFormData({...formData, cwd: e.target.value})}
+                onChange={e => setFormData({ ...formData, cwd: e.target.value })}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Dependencias (Opcional)</label>
-            <input 
-              type="text" 
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t.form.dependencies}</label>
+            <input
+              type="text"
               className="w-full border border-gray-300 rounded-lg py-2.5 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm font-mono transition-shadow"
-              placeholder="Ex: smart40-database, smart40-backend"
+              placeholder={t.form.dependenciesPlaceholder}
               value={formData.dependsOn}
-              onChange={e => setFormData({...formData, dependsOn: e.target.value})}
+              onChange={e => setFormData({ ...formData, dependsOn: e.target.value })}
             />
           </div>
 
           <label className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2.5 bg-gray-50/50">
-            <span className="text-sm font-medium text-gray-700">Executar pelo shell do Windows</span>
+            <span className="text-sm font-medium text-gray-700">{t.form.shell}</span>
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               checked={formData.shell}
-              onChange={e => setFormData({...formData, shell: e.target.checked})}
+              onChange={e => setFormData({ ...formData, shell: e.target.checked })}
             />
           </label>
 
           <div className="pt-4 flex justify-end space-x-3 mt-6">
-            <button 
-              type="button" 
+            <button
+              type="button"
               onClick={onClose}
               className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-colors"
             >
-              Cancelar
+              {t.form.cancel}
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               className="px-4 py-2.5 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 shadow-sm transition-colors"
             >
-              {initialConfig ? 'Salvar Alteracoes' : 'Adicionar App'}
+              {initialConfig ? t.form.save : t.form.add}
             </button>
           </div>
         </form>

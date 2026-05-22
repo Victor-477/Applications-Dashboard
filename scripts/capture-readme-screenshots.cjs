@@ -5,10 +5,13 @@ const { app, BrowserWindow } = require('electron');
 const root = path.resolve(__dirname, '..');
 const outputDir = path.join(root, 'docs', 'images');
 const targetUrl = process.argv[2] || 'http://127.0.0.1:48780';
+const screenshotLanguage = process.argv[3] || 'en';
 
 async function saveScreenshot(window, fileName) {
   const image = await window.webContents.capturePage();
-  await fs.writeFile(path.join(outputDir, fileName), image.toPNG());
+  const targetPath = path.join(outputDir, fileName);
+  await fs.writeFile(targetPath, image.toPNG());
+  console.log(`Saved ${targetPath}`);
 }
 
 async function main() {
@@ -25,12 +28,16 @@ async function main() {
   });
 
   await window.loadURL(targetUrl);
+  await window.webContents.executeJavaScript(`
+    window.localStorage.setItem('app-dashboard-language', ${JSON.stringify(screenshotLanguage)});
+  `);
+  await window.loadURL(targetUrl);
   await new Promise(resolve => setTimeout(resolve, 1200));
   await saveScreenshot(window, 'dashboard-overview.png');
 
   await window.webContents.executeJavaScript(`
     [...document.querySelectorAll('button')]
-      .find(button => button.textContent.includes('Novo App'))
+      .find(button => ['Novo App', 'New App', '新增应用'].some(label => button.textContent.includes(label)))
       ?.click();
   `);
   await new Promise(resolve => setTimeout(resolve, 500));
