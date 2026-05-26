@@ -14,13 +14,30 @@ const HOST = process.env.PANEL_HOST || '127.0.0.1';
 const PANEL_DIR = process.env.SMART40_PANEL_DIR || process.cwd();
 const PROJECT_ROOT = findProjectRoot(PANEL_DIR);
 const APPS_FILE = path.join(PANEL_DIR, 'apps.json');
-const runningProcesses = new Map<string, ChildProcess>();
+interface AppConfig {
+  id: string;
+  name: string;
+  command: string;
+  args: string;
+  port: string;
+  cwd: string;
+  dependsOn?: string[];
+  shell?: boolean;
+  advancedEnabled?: boolean;
+  alternatePorts?: string[];
+  secondaryCwd?: string;
+  advancedCommand?: string;
+  advancedArgs?: string;
+  advancedShell?: boolean;
+}
+
+const runningProcesses = new Map<string, ChildProcess[]>();
 
 // Log history and active clients
 const logHistory = new Map<string, { timestamp: string; type: string; message: string }[]>();
 const logClients = new Set<express.Response>();
 
-async function getApps(): Promise<{ id: string; name: string; command: string; args: string; port: string; cwd: string; dependsOn?: string[]; shell?: boolean }[]> {
+async function getApps(): Promise<AppConfig[]> {
   try {
     const data = await fs.readFile(APPS_FILE, 'utf-8');
     return JSON.parse(data);
@@ -275,6 +292,107 @@ async function waitForPort(port?: string, timeoutMs = 20000) {
   return false;
 }
 
+function getConfiguredPorts(appConfig?: Pick<AppConfig, 'port' | 'alternatePorts'>) {
+  if (!appConfig) return [];
+  return [appConfig.port, ...(appConfig.alternatePorts || [])]
+    .map(port => String(port || '').trim())
+    .filter(Boolean);
+}
+
+async function getFirstOpenPort(appConfig?: Pick<AppConfig, 'port' | 'alternatePorts'>) {
+  for (const port of getConfiguredPorts(appConfig)) {
+    if (await isPortOpen(port)) return port;
+  }
+  return undefined;
+}
+
+async function getRuntimePort(appConfig: AppConfig) {
+  const primaryPort = String(appConfig.port || '').trim();
+  if (!primaryPort || !(await isPortOpen(primaryPort))) return primaryPort;
+
+  for (const port of appConfig.alternatePorts || []) {
+    const candidate = String(port || '').trim();
+    if (candidate && !(await isPortOpen(candidate))) return candidate;
+  }
+
+  return undefined;
+}
+
+async function waitForAnyConfiguredPort(appConfig: AppConfig, timeoutMs = 20000) {
+  const ports = getConfiguredPorts(appConfig);
+  if (ports.length === 0) return true;
+
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await getFirstOpenPort(appConfig)) return true;
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  return false;
+}
+
+function getRunningAppProcesses(id: string) {
+  return (runningProcesses.get(id) || []).filter(proc => !proc.killed);
+}
+
+function removeRunningProcess(id: string, proc: ChildProcess) {
+  const remaining = getRunningAppProcesses(id).filter(item => item !== proc);
+  if (remaining.length > 0) runningProcesses.set(id, remaining);
+  else runningProcesses.delete(id);
+}
+
+function trackRunningProcess(id: string, proc: ChildProcess) {
+  const current = runningProcesses.get(id) || [];
+  runningProcesses.set(id, [...current, proc]);
+}
+
+function spawnTrackedProcess(options: {
+  id: string;
+  command: string;
+  args?: string;
+  cwd: string;
+  shell: boolean;
+  env: NodeJS.ProcessEnv;
+  label: string;
+}) {
+  const argsArray = splitArgs(options.args);
+  const fullCmd = `${options.command} ${options.args || ''}`.trim();
+  const proc = options.shell
+    ? spawn(fullCmd, {
+        cwd: options.cwd,
+        shell: true,
+        env: options.env
+      })
+    : spawn(options.command, argsArray, {
+        cwd: options.cwd,
+        shell: false,
+        env: options.env
+      });
+
+  trackRunningProcess(options.id, proc);
+  broadcastLog(options.id, `--- Iniciando ${options.label}: ${fullCmd} (PID: ${proc.pid}) ---`, 'system');
+
+  proc.stdout.on('data', (data) => {
+    broadcastLog(options.id, data.toString(), 'info');
+  });
+
+  proc.stderr.on('data', (data) => {
+    broadcastLog(options.id, data.toString(), 'error');
+  });
+
+  proc.on('close', (code) => {
+    removeRunningProcess(options.id, proc);
+    broadcastLog(options.id, `--- Processo ${options.label} encerrado com codigo ${code} ---`, 'system');
+  });
+
+  proc.on('error', (err) => {
+    broadcastLog(options.id, `Erro ao iniciar processo ${options.label}: ${err.message}`, 'error');
+    removeRunningProcess(options.id, proc);
+  });
+
+  return proc;
+}
+
 async function ensureDatabasePrepared(appId = 'smart40-database') {
   const backendDir = path.join(PROJECT_ROOT, 'backend');
   if (!fsExists(backendDir)) {
@@ -303,61 +421,59 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
     await startConfiguredApp(dependencyId, apps, visited);
   }
 
-  if (runningProcesses.has(id)) {
+  const currentProcesses = getRunningAppProcesses(id);
+  if (currentProcesses.length > 0) {
     if (id === 'smart40-database') {
       await ensureDatabasePrepared(id);
     }
-    return { success: true, pid: runningProcesses.get(id)?.pid, alreadyRunning: true };
+    return { success: true, pid: currentProcesses[0]?.pid, alreadyRunning: true };
   }
 
-  if (await isPortOpen(appConfig.port)) {
-    broadcastLog(id, `--- Porta ${appConfig.port} ja esta ativa. Start ignorado para evitar duplicidade. ---`, 'system');
+  const runtimePort = await getRuntimePort(appConfig);
+  if (!runtimePort && getConfiguredPorts(appConfig).length > 0) {
+    const openPort = await getFirstOpenPort(appConfig);
+    broadcastLog(id, `--- Porta ${openPort || appConfig.port} ja esta ativa. Start ignorado para evitar duplicidade. ---`, 'system');
     if (id === 'smart40-database') {
       await ensureDatabasePrepared(id);
     }
     return { success: true, external: true };
   }
 
-  const argsArray = splitArgs(appConfig.args);
   const cwd = resolveCwd(appConfig.cwd);
-  const shouldUseShell = appConfig.shell !== false;
-  const fullCmd = `${appConfig.command} ${appConfig.args}`.trim();
+  const env = {
+    ...process.env,
+    PORT: runtimePort || appConfig.port || process.env.PORT,
+    ALTERNATE_PORTS: (appConfig.alternatePorts || []).join(',')
+  };
 
-  const proc = shouldUseShell
-    ? spawn(fullCmd, {
-        cwd,
-        shell: true,
-        env: { ...process.env, PORT: appConfig.port || process.env.PORT }
-      })
-    : spawn(appConfig.command, argsArray, {
-        cwd,
-        shell: false,
-        env: { ...process.env, PORT: appConfig.port || process.env.PORT }
-      });
+  if (runtimePort && runtimePort !== appConfig.port) {
+    broadcastLog(id, `--- Porta principal indisponivel. Tentando porta alternativa ${runtimePort}. ---`, 'system');
+  }
 
-  runningProcesses.set(id, proc);
-  broadcastLog(id, `--- Iniciando: ${fullCmd} (PID: ${proc.pid}) ---`, 'system');
-
-  proc.stdout.on('data', (data) => {
-    broadcastLog(id, data.toString(), 'info');
+  const proc = spawnTrackedProcess({
+    id,
+    command: appConfig.command,
+    args: appConfig.args,
+    cwd,
+    shell: appConfig.shell !== false,
+    env,
+    label: 'principal'
   });
 
-  proc.stderr.on('data', (data) => {
-    broadcastLog(id, data.toString(), 'error');
-  });
+  if (appConfig.advancedEnabled && appConfig.advancedCommand) {
+    spawnTrackedProcess({
+      id,
+      command: appConfig.advancedCommand,
+      args: appConfig.advancedArgs,
+      cwd: resolveCwd(appConfig.secondaryCwd || appConfig.cwd),
+      shell: appConfig.advancedShell !== false,
+      env,
+      label: 'avancado'
+    });
+  }
 
-  proc.on('close', (code) => {
-    runningProcesses.delete(id);
-    broadcastLog(id, `--- Processo encerrado com codigo ${code} ---`, 'system');
-  });
-
-  proc.on('error', (err) => {
-    broadcastLog(id, `Erro ao iniciar processo: ${err.message}`, 'error');
-    runningProcesses.delete(id);
-  });
-
-  if (appConfig.port) {
-    await waitForPort(appConfig.port, 25000);
+  if (getConfiguredPorts(appConfig).length > 0) {
+    await waitForAnyConfiguredPort(appConfig, 25000);
   }
 
   if (id === 'smart40-database') {
@@ -388,19 +504,30 @@ function broadcastLog(appId: string, message: string, type: 'info' | 'error' | '
 app.get('/api/apps', async (req, res) => {
   const apps = await getApps();
   const state = await Promise.all(apps.map(async config => {
-    const proc = runningProcesses.get(config.id);
-    const portOpen = await isPortOpen(config.port);
+    const processes = getRunningAppProcesses(config.id);
+    const activePort = await getFirstOpenPort(config);
     return {
       config,
-      status: proc || portOpen ? 'running' : 'stopped',
-      pid: proc?.pid
+      status: processes.length > 0 || activePort ? 'running' : 'stopped',
+      pid: processes[0]?.pid,
+      activePort
     };
   }));
   res.json(state);
 });
 
 app.post('/api/apps', async (req, res) => {
-  const newApp = { id: crypto.randomUUID(), ...req.body };
+  const advancedEnabled = Boolean(req.body.advancedEnabled);
+  const newApp = {
+    id: crypto.randomUUID(),
+    ...req.body,
+    advancedEnabled,
+    alternatePorts: advancedEnabled ? (req.body.alternatePorts || []) : [],
+    secondaryCwd: advancedEnabled ? (req.body.secondaryCwd || '') : '',
+    advancedCommand: advancedEnabled ? (req.body.advancedCommand || '') : '',
+    advancedArgs: advancedEnabled ? (req.body.advancedArgs || '') : '',
+    advancedShell: advancedEnabled ? req.body.advancedShell !== false : true,
+  };
   const apps = await getApps();
   apps.push(newApp);
   await saveApps(apps);
@@ -419,7 +546,13 @@ app.put('/api/apps/:id', async (req, res) => {
   const current = apps[index];
   const updated = {
     ...current,
-    ...req.body,
+    name: req.body.name,
+    command: req.body.command,
+    args: req.body.args,
+    port: req.body.port,
+    cwd: req.body.cwd,
+    dependsOn: req.body.dependsOn || [],
+    shell: req.body.shell,
     id,
   };
 
@@ -431,8 +564,9 @@ app.put('/api/apps/:id', async (req, res) => {
 
 app.delete('/api/apps/:id', async (req, res) => {
   const id = req.params.id;
-  if (runningProcesses.has(id)) {
-    await stopProcessTree(runningProcesses.get(id)!);
+  const processes = getRunningAppProcesses(id);
+  if (processes.length > 0) {
+    await Promise.all(processes.map(proc => stopProcessTree(proc)));
     runningProcesses.delete(id);
   }
   let apps = await getApps();
@@ -459,16 +593,19 @@ app.post('/api/apps/:id/stop', async (req, res) => {
   const id = req.params.id;
   const apps = await getApps();
   const appConfig = apps.find(a => a.id === id);
-  const proc = runningProcesses.get(id);
-  if (proc) {
+  const processes = getRunningAppProcesses(id);
+  if (processes.length > 0) {
     broadcastLog(id, '--- Solicitando parada do processo ---', 'system');
-    await stopProcessTree(proc);
+    await Promise.all(processes.map(proc => stopProcessTree(proc)));
     runningProcesses.delete(id);
     res.json({ success: true });
     return;
   }
 
-  const stoppedByPort = await stopPidsByPort(appConfig?.port, id);
+  let stoppedByPort = 0;
+  for (const port of getConfiguredPorts(appConfig)) {
+    stoppedByPort += await stopPidsByPort(port, id);
+  }
   if (stoppedByPort > 0) {
     res.json({ success: true, stoppedByPort });
     return;

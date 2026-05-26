@@ -7,12 +7,19 @@ export interface AppConfig {
   cwd: string;
   dependsOn?: string[];
   shell?: boolean;
+  advancedEnabled?: boolean;
+  alternatePorts?: string[];
+  secondaryCwd?: string;
+  advancedCommand?: string;
+  advancedArgs?: string;
+  advancedShell?: boolean;
 }
 
 export interface AppState {
   config: AppConfig;
   status: 'stopped' | 'running';
   pid?: number;
+  activePort?: string;
 }
 
 export interface LogLine {

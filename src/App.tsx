@@ -1,10 +1,10 @@
-﻿/**
+/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, Globe2, Layers, Plus, Terminal } from 'lucide-react';
+import { ChevronDown, Globe2, Home, Layers, Plus, Settings } from 'lucide-react';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import LogViewer from './components/LogViewer';
@@ -26,6 +26,24 @@ export default function App() {
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const t = translations[language];
   const selectedLanguage = languageOptions.find(option => option.code === language)!;
+  const selectedApp = apps.find(a => a.config.id === selectedAppId);
+  const hasConfigOpen = isFormOpen;
+  const hasTerminalOpen = Boolean(selectedAppId) && !hasConfigOpen;
+  const hasSidePanelOpen = hasConfigOpen || hasTerminalOpen;
+
+  const statusSummary = apps.reduce(
+    (summary, app) => {
+      const appLogs = logs[app.config.id] || [];
+      const hasErrors = appLogs.some(log => log.type === 'error');
+
+      if (app.status === 'running') summary.running += 1;
+      else if (hasErrors) summary.failed += 1;
+      else summary.stopped += 1;
+
+      return summary;
+    },
+    { running: 0, stopped: 0, failed: 0 }
+  );
 
   useEffect(() => {
     fetchApps();
@@ -59,17 +77,17 @@ export default function App() {
 
   useEffect(() => {
     if (selectedAppId && (!logs[selectedAppId] || logs[selectedAppId].length === 0)) {
-        fetch(`/api/apps/${selectedAppId}/logs`)
+      fetch(`/api/apps/${selectedAppId}/logs`)
         .then(res => res.json())
         .then(history => {
-             const formattedLogs = history.map((log: any) => ({
-                 id: crypto.randomUUID(),
-                 ...log
-             }));
-             setLogs(prev => ({
-                 ...prev,
-                 [selectedAppId]: formattedLogs
-             }));
+          const formattedLogs = history.map((log: any) => ({
+            id: crypto.randomUUID(),
+            ...log
+          }));
+          setLogs(prev => ({
+            ...prev,
+            [selectedAppId]: formattedLogs
+          }));
         });
     }
   }, [selectedAppId]);
@@ -78,9 +96,10 @@ export default function App() {
     const res = await fetch('/api/apps');
     const data = await res.json();
     setApps(data);
-    if (!selectedAppId && data.length > 0) {
-      setSelectedAppId(data[0].config.id);
-    }
+    setSelectedAppId(current => {
+      if (!current) return null;
+      return data.some((app: AppState) => app.config.id === current) ? current : null;
+    });
   };
 
   const handleCreateApp = async (config: Partial<AppConfig>) => {
@@ -106,11 +125,13 @@ export default function App() {
   };
 
   const openCreateForm = () => {
+    setSelectedAppId(null);
     setEditingApp(null);
     setIsFormOpen(true);
   };
 
   const openEditForm = (config: AppConfig) => {
+    setSelectedAppId(config.id);
     setEditingApp(config);
     setIsFormOpen(true);
   };
@@ -122,14 +143,7 @@ export default function App() {
 
   const handleDeleteApp = async (id: string) => {
     await fetch(`/api/apps/${id}`, { method: 'DELETE' });
-    if (selectedAppId === id) {
-      setApps(prev => {
-        const remaining = prev.filter(a => a.config.id !== id);
-        if (remaining.length > 0) setSelectedAppId(remaining[0].config.id);
-        else setSelectedAppId(null);
-        return remaining;
-      });
-    }
+    if (selectedAppId === id) setSelectedAppId(null);
     fetchApps();
   };
 
@@ -144,35 +158,34 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans">
-      <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 flex justify-between items-center z-20 relative">
-        <div className="flex items-center space-x-3">
-          <div className="bg-white p-1.5 rounded-lg text-white shadow-sm border border-gray-200">
-            <img src="/ind40-logo.png" alt="Applications Dashboard" className="w-8 h-8 object-contain" />
-          </div>
+    <div className="flex h-screen flex-col overflow-hidden bg-[#edf0f2] font-sans text-gray-900">
+      <header className="relative z-20 flex h-[94px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-8 shadow-sm">
+        <div className="flex items-center gap-4">
+          <img src="/ind40-logo.png" alt="Applications Dashboard" className="h-8 w-8 object-contain" />
           <div>
-             <h1 className="text-xl font-semibold tracking-tight text-gray-900 leading-tight">Applications Dashboard</h1>
-             <p className="text-xs text-gray-500 font-medium">{t.appSubtitle}</p>
+            <h1 className="text-[15px] font-bold leading-tight text-gray-950">Control Panel</h1>
+            <p className="mt-1 text-[11px] font-medium text-gray-500">{t.appSubtitle}</p>
           </div>
         </div>
+
         <div className="flex items-center gap-3">
           <div className="relative">
             <button
               type="button"
               onClick={() => setIsLanguageMenuOpen(prev => !prev)}
-              className="flex min-w-[132px] items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-blue-500/40"
+              className="flex min-w-[112px] items-center justify-between gap-2 rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium text-gray-800 transition-colors hover:border-gray-200 hover:bg-gray-50 focus:ring-2 focus:ring-blue-500/40"
               aria-haspopup="menu"
               aria-expanded={isLanguageMenuOpen}
               title={t.language}
             >
               <span className="flex items-center gap-2">
                 <Globe2 className="h-4 w-4 text-gray-500" />
-                {selectedLanguage.label}
+                {selectedLanguage.shortLabel}
               </span>
               <ChevronDown className="h-4 w-4 text-gray-400" />
             </button>
             {isLanguageMenuOpen && (
-              <div className="absolute right-0 mt-2 w-44 rounded-lg border border-gray-200 bg-white p-1 shadow-lg z-30" role="menu">
+              <div className="absolute right-0 mt-2 w-44 rounded-md border border-gray-200 bg-white p-1 shadow-lg" role="menu">
                 {languageOptions.map(option => (
                   <button
                     key={option.code}
@@ -181,7 +194,7 @@ export default function App() {
                       setLanguage(option.code);
                       setIsLanguageMenuOpen(false);
                     }}
-                    className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition-colors ${
+                    className={`flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm transition-colors ${
                       option.code === language
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-gray-700 hover:bg-gray-50'
@@ -195,75 +208,110 @@ export default function App() {
               </div>
             )}
           </div>
+
           <button
             onClick={openCreateForm}
-            className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-all shadow-sm focus:ring-2 focus:ring-blue-500/50"
+            className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500/50"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-4 w-4" />
             <span>{t.newApp}</span>
           </button>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden">
-        <div className="w-[340px] shrink-0 border-r border-gray-200 bg-gray-50/50 flex flex-col z-10 shadow-[2px_0_8px_-4px_rgba(0,0,0,0.1)]">
-          <div className="px-5 py-4 border-b border-gray-200/50 flex items-center justify-between bg-white/50 space-x-2">
-            <h2 className="text-[11px] uppercase font-bold text-gray-500 tracking-wider">{t.registeredApps}</h2>
-            <div className="bg-gray-200 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">
-              {apps.length}
-            </div>
+      <main className="flex min-h-0 flex-1 overflow-hidden">
+        <aside className="flex w-[58px] shrink-0 flex-col items-center justify-between border-r border-gray-200 bg-white py-6">
+          <div className="flex w-full flex-col items-center gap-4">
+            <button
+              type="button"
+              className="relative flex h-12 w-full items-center justify-center text-blue-600"
+              title="Services"
+            >
+              <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />
+              <Home className="h-6 w-6" />
+            </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {apps.map(app => (
-              <AppCard 
-                key={app.config.id}
-                app={app}
-                isSelected={selectedAppId === app.config.id}
-                onSelect={() => setSelectedAppId(app.config.id)}
-                onStart={() => handleStart(app.config.id)}
-                onStop={() => handleStop(app.config.id)}
-                onEdit={() => openEditForm(app.config)}
-                onDelete={() => handleDeleteApp(app.config.id)}
-                t={t}
-              />
-            ))}
-            {apps.length === 0 && (
-              <div className="text-center py-12 px-4 flex flex-col items-center">
-                <div className="bg-white border text-gray-400 border-gray-200 rounded-full w-14 h-14 flex items-center justify-center mb-4 shadow-sm">
-                  <Layers className="w-6 h-6" />
+
+          <button
+            type="button"
+            onClick={openCreateForm}
+            className="flex h-10 w-10 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100 hover:text-blue-600"
+            title={t.newApp}
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+        </aside>
+
+        <section className="flex min-w-0 flex-1 gap-6 overflow-hidden px-6 py-6">
+          <div className={`min-w-0 overflow-y-auto pr-1 transition-[flex-basis] duration-300 ${hasSidePanelOpen ? 'basis-[49%]' : 'basis-full'}`}>
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">Services</h2>
+                <p className="mt-1 text-sm text-gray-500">{t.registeredApps}</p>
+              </div>
+              <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-600 shadow-sm ring-1 ring-gray-200">
+                {apps.length}
+              </div>
+            </div>
+
+            {apps.length > 0 ? (
+              <div className={`grid gap-6 pb-8 ${hasSidePanelOpen ? 'grid-cols-[repeat(auto-fit,minmax(240px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(258px,1fr))]'}`}>
+                {apps.map(app => (
+                  <AppCard
+                    key={app.config.id}
+                    app={app}
+                    hasError={(logs[app.config.id] || []).some(log => log.type === 'error')}
+                    isSelected={selectedAppId === app.config.id}
+                    onSelect={() => setSelectedAppId(app.config.id)}
+                    onStart={() => handleStart(app.config.id)}
+                    onStop={() => handleStop(app.config.id)}
+                    onEdit={() => openEditForm(app.config)}
+                    onDelete={() => handleDeleteApp(app.config.id)}
+                    t={t}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-md border border-dashed border-gray-300 bg-white/70 px-6 text-center">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm">
+                  <Layers className="h-6 w-6" />
                 </div>
-                <h3 className="text-gray-800 font-semibold text-sm mb-1">{t.noAppsTitle}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{t.noAppsDescription}</p>
+                <h3 className="mb-1 text-sm font-semibold text-gray-800">{t.noAppsTitle}</h3>
+                <p className="max-w-xs text-xs leading-relaxed text-gray-500">{t.noAppsDescription}</p>
               </div>
             )}
           </div>
-        </div>
-        
-        <div className="flex-1 flex flex-col bg-white overflow-hidden">
-          {selectedAppId ? (
-            <LogViewer 
-              app={apps.find(a => a.config.id === selectedAppId)} 
-              logs={logs[selectedAppId] || []} 
-              t={t}
-            />
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
-              <Terminal className="w-16 h-16 mb-4 text-gray-300" />
-              <p className="font-medium text-gray-500">{t.noSelectedAppTitle}</p>
-              <p className="text-xs mt-1">{t.noSelectedAppDescription}</p>
+
+          {hasConfigOpen ? (
+            <div className="min-w-[420px] flex-1 overflow-hidden pb-8">
+              <AppForm
+                initialConfig={editingApp}
+                onClose={closeForm}
+                onSubmit={editingApp ? handleUpdateApp : handleCreateApp}
+                t={t}
+              />
+            </div>
+          ) : hasTerminalOpen && (
+            <div className="min-w-[420px] flex-1 overflow-hidden pb-8">
+              <LogViewer
+                app={selectedApp}
+                logs={selectedAppId ? logs[selectedAppId] || [] : []}
+                onClose={() => setSelectedAppId(null)}
+                t={t}
+              />
             </div>
           )}
-        </div>
+        </section>
       </main>
 
-      {isFormOpen && (
-        <AppForm 
-          initialConfig={editingApp}
-          onClose={closeForm} 
-          onSubmit={editingApp ? handleUpdateApp : handleCreateApp} 
-          t={t}
-        />
-      )}
+      <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
+        <span>Control Panel - Applications Dashboard v0.0.0</span>
+        <span className="flex items-center gap-5">
+          <span>Running: {statusSummary.running}</span>
+          <span>Stopped: {statusSummary.stopped}</span>
+          <span>Failed: {statusSummary.failed}</span>
+        </span>
+      </footer>
     </div>
   );
 }

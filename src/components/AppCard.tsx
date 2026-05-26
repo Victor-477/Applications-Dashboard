@@ -1,9 +1,10 @@
-import { Pencil, Play, Square, Trash2, Terminal } from 'lucide-react';
+import { Globe2, Play, RotateCw, Settings, Square, Trash2 } from 'lucide-react';
 import { AppState } from '../types';
 import { Translation } from '../i18n';
 
 interface AppCardProps {
   app: AppState;
+  hasError: boolean;
   isSelected: boolean;
   onSelect: () => void;
   onStart: () => void;
@@ -13,81 +14,108 @@ interface AppCardProps {
   t: Translation;
 }
 
-export default function AppCard({ app, isSelected, onSelect, onStart, onStop, onEdit, onDelete, t }: AppCardProps) {
+export default function AppCard({ app, hasError, isSelected, onSelect, onStart, onStop, onEdit, onDelete, t }: AppCardProps) {
   const isRunning = app.status === 'running';
+  const statusTone = isRunning ? 'bg-[#62b43d]' : hasError ? 'bg-[#d60000]' : 'bg-gray-400';
+  const statusLabel = isRunning ? 'running' : hasError ? 'failed' : 'stopped';
+  const displayPort = app.activePort || app.config.port;
+  const canOpenApp = Boolean(displayPort);
+
+  const openApp = () => {
+    if (!displayPort) return;
+    window.open(`http://127.0.0.1:${displayPort}`, '_blank', 'noopener,noreferrer');
+  };
 
   return (
-    <div 
-      className={`relative p-4 rounded-xl border transition-all cursor-pointer group flex flex-col space-y-3 shadow-sm
-        ${isSelected 
-          ? 'bg-blue-50/50 border-blue-200 ring-1 ring-blue-500/20' 
-          : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
-        }`}
+    <article
+      className={`group relative flex h-[190px] min-w-0 cursor-pointer flex-col justify-between rounded-lg border bg-white px-6 py-5 transition-all ${
+        isSelected
+          ? 'border-blue-500 shadow-[0_0_0_1px_rgba(0,149,235,0.15)]'
+          : 'border-[#cfd8df] shadow-sm hover:border-blue-300 hover:shadow-md'
+      }`}
       onClick={onSelect}
     >
-      <div className="flex justify-between items-start">
-        <div className="flex flex-col">
-          <div className="flex items-center space-x-2">
-            <h3 className="text-[15px] font-semibold text-gray-900 truncate max-w-[170px]" title={app.config.name}>
-              {app.config.name}
-            </h3>
-            {app.config.port && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200" title={`${t.portTitle} ${app.config.port}`}>
-                :{app.config.port}
-              </span>
-            )}
-          </div>
-          <div className="flex items-center space-x-1.5 mt-1.5">
-            <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-300'}`} />
-            <span className="text-xs text-gray-500 font-medium">
-              {isRunning ? t.active : t.inactive}
-            </span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            className="text-gray-400 hover:text-blue-600 p-1.5 rounded-md hover:bg-blue-50"
-            title={t.edit}
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="text-gray-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50"
-            title={t.delete}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onDelete();
+        }}
+        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded text-gray-300 opacity-0 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+        title={t.delete}
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+
+      <div className="min-w-0 pr-6">
+        <h3 className="truncate text-[24px] font-normal leading-tight text-gray-950" title={app.config.name}>
+          {app.config.name}
+        </h3>
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className={`h-2.5 w-2.5 rounded-full ${statusTone}`} />
+          <span className="text-sm leading-none text-gray-500">{statusLabel}</span>
         </div>
       </div>
 
-      <div className="flex justify-between items-end pt-2 border-t border-gray-100/80">
-        <div className="flex items-center text-xs text-gray-500 max-w-[130px]" title={app.config.command}>
-           <Terminal className="w-3.5 h-3.5 mr-1.5 flex-shrink-0 text-gray-400" />
-           <span className="truncate font-mono text-[11px]">{app.config.command}</span>
-        </div>
-        <div className="flex space-x-2">
-          {!isRunning ? (
+      <div>
+        <div className="mb-3 h-px w-full bg-[#cfd8df]" />
+        <div className="grid h-8 grid-cols-3 items-center text-[#8ca6b8]">
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              openApp();
+            }}
+            disabled={!canOpenApp}
+            className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+              canOpenApp
+                ? 'text-[#009dea] hover:bg-blue-50 hover:text-blue-600'
+                : 'cursor-not-allowed text-[#a8bac6]'
+            }`}
+            title={displayPort ? `${t.portTitle} ${displayPort}` : t.portTitle}
+          >
+            <Globe2 className="h-5 w-5" />
+          </button>
+
+          {isRunning ? (
             <button
-              onClick={(e) => { e.stopPropagation(); onStart(); }}
-              className="flex items-center space-x-1.5 bg-white hover:bg-green-50 text-gray-700 hover:text-green-700 hover:border-green-200 border border-gray-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onStop();
+              }}
+              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#a9bdca] text-[#009dea] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              title={t.stop}
             >
-              <Play className="w-3 h-3" />
-              <span>{t.start}</span>
+              <Square className="h-3 w-3 fill-current" />
             </button>
           ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); onStop(); }}
-              className="flex items-center space-x-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors shadow-sm"
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onStart();
+              }}
+              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[#009dea] transition-colors hover:bg-blue-50 hover:text-blue-700"
+              title={t.start}
             >
-              <Square className="w-3 h-3 fill-current" />
-              <span>{t.stop}</span>
+              {hasError ? <RotateCw className="h-5 w-5" /> : <Play className="h-4 w-4 fill-current" />}
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit();
+            }}
+            className="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[#8ca6b8] transition-colors hover:bg-gray-100 hover:text-gray-700"
+            title={t.edit}
+          >
+            <Settings className="h-6 w-6" />
+          </button>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
