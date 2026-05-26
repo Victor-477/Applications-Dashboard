@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Pencil, RefreshCw, Settings, Trash2, X } from 'lucide-react';
-import { AppState, AppConfig, SystemLogLine } from '../types';
+import { AppState, AppConfig, ProgramSettings, SettingsTab, SystemLogLine } from '../types';
 import { Translation } from '../i18n';
 
-type SettingsTab = 'apps' | 'logs' | 'general';
 type ExportFormat = 'csv' | 'txt' | 'json' | 'ndjson' | 'log';
 
 interface SettingsViewProps {
   refreshKey: number;
+  initialTab: SettingsTab;
   onEdit: (config: AppConfig) => void;
   onDelete: (id: string) => Promise<void>;
   onToggleEnabled: (id: string, enabled: boolean) => Promise<void>;
@@ -20,11 +20,20 @@ function formatDate(value: string) {
   return date.toLocaleString();
 }
 
-export default function SettingsView({ refreshKey, onEdit, onDelete, onToggleEnabled, t }: SettingsViewProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTab>('apps');
+export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete, onToggleEnabled, t }: SettingsViewProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [apps, setApps] = useState<AppState[]>([]);
   const [systemLogs, setSystemLogs] = useState<SystemLogLine[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [programSettings, setProgramSettings] = useState<ProgramSettings | null>(null);
+  const [settingsForm, setSettingsForm] = useState({
+    homepageUrl: 'http://localhost',
+    aiProvider: 'openai',
+    aiModel: 'gpt-4o-mini',
+    aiBaseUrl: '',
+    aiApiKey: '',
+  });
+  const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [exportSource, setExportSource] = useState('all');
   const [exportLimitMode, setExportLimitMode] = useState<'all' | 'latest'>('all');
@@ -53,6 +62,17 @@ export default function SettingsView({ refreshKey, onEdit, onDelete, onToggleEna
       ]);
       setApps(await appsRes.json());
       setSystemLogs(await logsRes.json());
+      const settingsRes = await fetch('/api/settings');
+      const settings = await settingsRes.json();
+      setProgramSettings(settings);
+      setSettingsForm(prev => ({
+        ...prev,
+        homepageUrl: settings.homepageUrl || 'http://localhost',
+        aiProvider: settings.aiProvider || 'openai',
+        aiModel: settings.aiModel || 'gpt-4o-mini',
+        aiBaseUrl: settings.aiBaseUrl || '',
+        aiApiKey: '',
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -61,6 +81,10 @@ export default function SettingsView({ refreshKey, onEdit, onDelete, onToggleEna
   useEffect(() => {
     loadSettings();
   }, [refreshKey]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'apps', label: t.settings.enableApps },
@@ -105,6 +129,20 @@ export default function SettingsView({ refreshKey, onEdit, onDelete, onToggleEna
 
     setIsExportOpen(false);
     await loadSettings();
+  };
+
+  const saveProgramSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const response = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settingsForm),
+    });
+    const settings = await response.json();
+    setProgramSettings(settings);
+    setSettingsForm(prev => ({ ...prev, aiApiKey: '' }));
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
   };
 
   const formatOptions: { value: ExportFormat; label: string }[] = [
@@ -240,25 +278,126 @@ export default function SettingsView({ refreshKey, onEdit, onDelete, onToggleEna
         )}
 
         {activeTab === 'general' && (
-          <div className="grid gap-4 p-5 sm:grid-cols-3">
-            <div className="border border-gray-200 bg-gray-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.totalApps}</p>
-              <p className="mt-3 text-3xl font-bold text-gray-900">{summary.total}</p>
-            </div>
-            <div className="border border-gray-200 bg-gray-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.visibleApps}</p>
-              <p className="mt-3 text-3xl font-bold text-green-600">{summary.visible}</p>
-            </div>
-            <div className="border border-gray-200 bg-gray-50 p-5">
-              <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.disabledApps}</p>
-              <p className="mt-3 text-3xl font-bold text-gray-500">{summary.disabled}</p>
-            </div>
-            <div className="border border-gray-200 bg-white p-5 sm:col-span-3">
-              <div className="flex items-center gap-3 text-gray-700">
-                <Settings className="h-5 w-5 text-blue-500" />
-                <span className="text-sm font-semibold">Control Panel - Applications Dashboard</span>
+          <div className="grid min-h-full gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <form onSubmit={saveProgramSettings} className="space-y-5">
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.homepageCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.homepageCategoryDescription}</p>
+                </div>
+                <div className="px-5 py-5">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.homepageUrl}</span>
+                    <input
+                      value={settingsForm.homepageUrl}
+                      onChange={event => setSettingsForm({ ...settingsForm, homepageUrl: event.target.value })}
+                      placeholder={t.settings.homepageUrlPlaceholder}
+                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.aiCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.aiCategoryDescription}</p>
+                </div>
+                <div className="space-y-5 px-5 py-5">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiProvider}</span>
+                      <select
+                        value={settingsForm.aiProvider}
+                        onChange={event => setSettingsForm({ ...settingsForm, aiProvider: event.target.value })}
+                        className="w-full border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      >
+                        <option value="openai">OpenAI</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="openai-compatible">OpenAI-compatible</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiModel}</span>
+                      <input
+                        value={settingsForm.aiModel}
+                        onChange={event => setSettingsForm({ ...settingsForm, aiModel: event.target.value })}
+                        placeholder={t.settings.aiModelPlaceholder}
+                        className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      />
+                    </label>
+                  </div>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiBaseUrl}</span>
+                    <input
+                      value={settingsForm.aiBaseUrl}
+                      onChange={event => setSettingsForm({ ...settingsForm, aiBaseUrl: event.target.value })}
+                      placeholder={t.settings.aiBaseUrlPlaceholder}
+                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiApiKey}</span>
+                    <input
+                      type="password"
+                      value={settingsForm.aiApiKey}
+                      onChange={event => setSettingsForm({ ...settingsForm, aiApiKey: event.target.value })}
+                      placeholder={t.settings.aiApiKeyPlaceholder}
+                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    />
+                    {programSettings?.aiApiKeySet && <span className="mt-1.5 block text-xs font-semibold text-green-600">{t.settings.aiKeyConfigured}</span>}
+                  </label>
+
+                  <p className="border-l-2 border-blue-500 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
+                    {t.settings.aiSecurityNote}
+                  </p>
+                </div>
+              </section>
+
+              <div className="flex items-center gap-3 border border-gray-200 bg-white px-5 py-4">
+                <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
+                  {t.settings.saveSettings}
+                </button>
+                {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
               </div>
-            </div>
+            </form>
+
+            <aside className="space-y-4">
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.overviewCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.overviewCategoryDescription}</p>
+                </div>
+                <div className="divide-y divide-gray-200">
+                  <div className="px-5 py-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.totalApps}</p>
+                    <p className="mt-2 text-3xl font-bold text-gray-900">{summary.total}</p>
+                  </div>
+                  <div className="px-5 py-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.visibleApps}</p>
+                    <p className="mt-2 text-3xl font-bold text-green-600">{summary.visible}</p>
+                  </div>
+                  <div className="px-5 py-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.disabledApps}</p>
+                    <p className="mt-2 text-3xl font-bold text-gray-500">{summary.disabled}</p>
+                  </div>
+                </div>
+              </section>
+
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Settings className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.1.0</p>
+                  </div>
+                </div>
+              </section>
+            </aside>
           </div>
         )}
       </div>

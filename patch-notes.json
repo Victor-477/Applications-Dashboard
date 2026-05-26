@@ -1,0 +1,39 @@
+[
+  {
+    "version": "2.1.0",
+    "date": "2026-05-26",
+    "title": "Structured settings and patch detail view",
+    "changes": [
+      "Reorganized General settings into clear HomePage, AI Chat, and system overview categories.",
+      "Kept Settings and Patch Files headers fixed while only tab and page content scrolls.",
+      "Made recent Git commit entries clickable in Patch Files.",
+      "Added commit detail panels with hash, date, subject, and extended descriptions when available.",
+      "Updated the application versioning flow for release 2.1.0."
+    ]
+  },
+  {
+    "version": "0.1.0",
+    "date": "2026-05-26",
+    "title": "Control Panel navigation and secure utility pages",
+    "changes": [
+      "Added sidebar navigation for Home, HomePage, AI Chat, Patch Files, and Settings.",
+      "Added configurable HomePage URL in General settings.",
+      "Added AI Chat page with server-side provider configuration and bounded chat context.",
+      "Added Patch Files page with version notes and recent Git commit history.",
+      "Added system log export filters, multiple log formats, and optional cleanup after download.",
+      "Moved destructive instance deletion to Settings only."
+    ]
+  },
+  {
+    "version": "0.0.1",
+    "date": "2026-05-26",
+    "title": "Service cards and execution dashboard",
+    "changes": [
+      "Added service card grid layout.",
+      "Added terminal viewer beside selected services.",
+      "Added instance creation and editing panel.",
+      "Added enable and disable controls for instances.",
+      "Added local system logs."
+    ]
+  }
+]

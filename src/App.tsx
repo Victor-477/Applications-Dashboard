@@ -4,12 +4,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, Globe2, Home, Layers, Plus, Settings } from 'lucide-react';
+import { ChevronDown, FileText, Globe2, Home, Layers, MessageSquare, Plus, Settings } from 'lucide-react';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
+import AIChatView from './components/AIChatView';
 import LogViewer from './components/LogViewer';
+import PatchFilesView from './components/PatchFilesView';
 import SettingsView from './components/SettingsView';
-import { AppState, AppConfig, LogLine } from './types';
+import { AppState, AppConfig, AppView, LogLine, SettingsTab } from './types';
 import { isLanguage, Language, languageOptions, translations } from './i18n';
 
 function getInitialLanguage(): Language {
@@ -19,7 +21,8 @@ function getInitialLanguage(): Language {
 
 export default function App() {
   const [apps, setApps] = useState<AppState[]>([]);
-  const [currentView, setCurrentView] = useState<'services' | 'settings'>('services');
+  const [currentView, setCurrentView] = useState<AppView>('services');
+  const [settingsInitialTab, setSettingsInitialTab] = useState<SettingsTab>('apps');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
@@ -33,6 +36,11 @@ export default function App() {
   const hasConfigOpen = isFormOpen;
   const hasTerminalOpen = currentView === 'services' && Boolean(selectedAppId) && !hasConfigOpen;
   const hasSidePanelOpen = hasConfigOpen || hasTerminalOpen;
+  const contentShellClass = [
+    'min-w-0 pr-1 transition-[flex-basis] duration-300',
+    hasSidePanelOpen ? 'basis-[49%]' : 'basis-full',
+    currentView === 'services' ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
+  ].join(' ');
 
   const statusSummary = apps.reduce(
     (summary, app) => {
@@ -181,11 +189,46 @@ export default function App() {
   };
 
   const openSettingsView = () => {
+    setSettingsInitialTab('apps');
     setCurrentView('settings');
     setSelectedAppId(null);
     setIsFormOpen(false);
     setEditingApp(null);
     setSettingsRefreshKey(key => key + 1);
+  };
+
+  const openGeneralSettings = () => {
+    setSettingsInitialTab('general');
+    setCurrentView('settings');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+    setSettingsRefreshKey(key => key + 1);
+  };
+
+  const openAIChatView = () => {
+    setCurrentView('ai');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
+  const openPatchFilesView = () => {
+    setCurrentView('patches');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
+  const openHomePage = async () => {
+    const res = await fetch('/api/settings');
+    const settings = await res.json();
+    if (settings.homepageUrl) {
+      window.open(settings.homepageUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    alert(t.homepageMissing);
+    openGeneralSettings();
   };
 
   return (
@@ -252,15 +295,41 @@ export default function App() {
 
       <main className="flex min-h-0 flex-1 overflow-hidden">
         <aside className="flex w-[58px] shrink-0 flex-col items-center justify-between border-r border-gray-200 bg-white py-6">
-          <div className="flex w-full flex-col items-center gap-4">
+          <div className="flex w-full flex-col items-center gap-3">
             <button
               type="button"
               onClick={openServicesView}
               className={`relative flex h-12 w-full items-center justify-center ${currentView === 'services' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
-              title="Services"
+              title={t.nav.home}
             >
               {currentView === 'services' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
               <Home className="h-6 w-6" />
+            </button>
+            <button
+              type="button"
+              onClick={openHomePage}
+              className="relative flex h-10 w-full items-center justify-center text-gray-700 transition-colors hover:text-blue-600"
+              title={t.nav.homepage}
+            >
+              <Globe2 className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={openAIChatView}
+              className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'ai' ? 'text-blue-600' : 'text-gray-700'}`}
+              title={t.nav.aiChat}
+            >
+              {currentView === 'ai' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+              <MessageSquare className="h-5 w-5 fill-current stroke-white" />
+            </button>
+            <button
+              type="button"
+              onClick={openPatchFilesView}
+              className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'patches' ? 'text-blue-600' : 'text-gray-700'}`}
+              title={t.nav.patchFiles}
+            >
+              {currentView === 'patches' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+              <FileText className="h-5 w-5" />
             </button>
           </div>
 
@@ -276,15 +345,20 @@ export default function App() {
         </aside>
 
         <section className="flex min-w-0 flex-1 gap-6 overflow-hidden px-6 py-6">
-          <div className={`min-w-0 overflow-y-auto pr-1 transition-[flex-basis] duration-300 ${hasSidePanelOpen ? 'basis-[49%]' : 'basis-full'}`}>
+          <div className={contentShellClass}>
             {currentView === 'settings' ? (
               <SettingsView
                 refreshKey={settingsRefreshKey}
+                initialTab={settingsInitialTab}
                 onEdit={openEditForm}
                 onDelete={handleDeleteApp}
                 onToggleEnabled={handleToggleEnabled}
                 t={t}
               />
+            ) : currentView === 'ai' ? (
+              <AIChatView t={t} />
+            ) : currentView === 'patches' ? (
+              <PatchFilesView t={t} />
             ) : (
               <>
                 <div className="mb-6 flex items-center justify-between">
@@ -349,7 +423,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v0.0.0</span>
+        <span>Control Panel - Applications Dashboard v2.1.0</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

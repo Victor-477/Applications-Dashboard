@@ -14,6 +14,9 @@ const HOST = process.env.PANEL_HOST || '127.0.0.1';
 const PANEL_DIR = process.env.SMART40_PANEL_DIR || process.cwd();
 const PROJECT_ROOT = findProjectRoot(PANEL_DIR);
 const APPS_FILE = path.join(PANEL_DIR, 'apps.json');
+const SETTINGS_FILE = path.join(PANEL_DIR, 'settings.json');
+const PATCH_NOTES_FILE = path.join(PANEL_DIR, 'patch-notes.json');
+const PACKAGE_FILE = path.join(PANEL_DIR, 'package.json');
 interface AppConfig {
   id: string;
   name: string;
@@ -30,6 +33,14 @@ interface AppConfig {
   advancedCommand?: string;
   advancedArgs?: string;
   advancedShell?: boolean;
+}
+
+interface ProgramSettingsFile {
+  homepageUrl: string;
+  aiProvider: 'openai' | 'gemini' | 'anthropic' | 'openai-compatible';
+  aiModel: string;
+  aiBaseUrl: string;
+  aiApiKey: string;
 }
 
 const runningProcesses = new Map<string, ChildProcess[]>();
@@ -55,6 +66,44 @@ async function getApps(): Promise<AppConfig[]> {
 
 async function saveApps(apps: any[]) {
   await fs.writeFile(APPS_FILE, JSON.stringify(apps, null, 2), 'utf-8');
+}
+
+function getDefaultSettings(): ProgramSettingsFile {
+  return {
+    homepageUrl: 'http://localhost',
+    aiProvider: 'openai',
+    aiModel: 'gpt-4o-mini',
+    aiBaseUrl: '',
+    aiApiKey: '',
+  };
+}
+
+async function getSettings(): Promise<ProgramSettingsFile> {
+  try {
+    const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
+    return { ...getDefaultSettings(), ...JSON.parse(data) };
+  } catch (error) {
+    if ((error as any).code === 'ENOENT') {
+      const defaultSettings = getDefaultSettings();
+      await saveSettings(defaultSettings);
+      return defaultSettings;
+    }
+    return getDefaultSettings();
+  }
+}
+
+async function saveSettings(settings: ProgramSettingsFile) {
+  await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
+}
+
+function publicSettings(settings: ProgramSettingsFile) {
+  return {
+    homepageUrl: settings.homepageUrl,
+    aiProvider: settings.aiProvider,
+    aiModel: settings.aiModel,
+    aiBaseUrl: settings.aiBaseUrl,
+    aiApiKeySet: Boolean(settings.aiApiKey),
+  };
 }
 
 function getDefaultApps() {
@@ -612,7 +661,220 @@ function clearExportedSystemLogs(logs: typeof systemLogHistory) {
   }
 }
 
+function clampChatMessages(messages: any[]) {
+  return (Array.isArray(messages) ? messages : [])
+    .filter(message => message && (message.role === 'user' || message.role === 'assistant'))
+    .slice(-8)
+    .map(message => ({
+      role: message.role,
+      content: String(message.content || '').slice(0, 2000),
+    }));
+}
+
+async function callOpenAICompatible(settings: ProgramSettingsFile, messages: { role: string; content: string }[]) {
+  const baseUrl = settings.aiProvider === 'openai-compatible'
+    ? settings.aiBaseUrl.replace(/\/$/, '')
+    : 'https://api.openai.com/v1';
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${settings.aiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: settings.aiModel || 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: 'You are a concise assistant inside a local control panel. Keep answers short and practical.' },
+        ...messages,
+      ],
+      temperature: 0.3,
+      max_tokens: 450,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`AI request failed with status ${response.status}`);
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function callAnthropic(settings: ProgramSettingsFile, messages: { role: string; content: string }[]) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': settings.aiApiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: settings.aiModel || 'claude-3-5-haiku-latest',
+      max_tokens: 450,
+      system: 'You are a concise assistant inside a local control panel. Keep answers short and practical.',
+      messages,
+    }),
+  });
+
+  if (!response.ok) throw new Error(`AI request failed with status ${response.status}`);
+  const data = await response.json();
+  return data.content?.map((item: any) => item.text || '').join('\n') || '';
+}
+
+async function callGemini(settings: ProgramSettingsFile, messages: { role: string; content: string }[]) {
+  const model = settings.aiModel || 'gemini-1.5-flash';
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(settings.aiApiKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: messages.map(message => ({
+        role: message.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: message.content }],
+      })),
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 450,
+      },
+      systemInstruction: {
+        parts: [{ text: 'You are a concise assistant inside a local control panel. Keep answers short and practical.' }],
+      },
+    }),
+  });
+
+  if (!response.ok) throw new Error(`AI request failed with status ${response.status}`);
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.map((part: any) => part.text || '').join('\n') || '';
+}
+
+async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf-8'));
+  } catch {
+    return fallback;
+  }
+}
+
+async function readRecentGitCommitsFallback() {
+  try {
+    const headLog = await fs.readFile(path.join(PANEL_DIR, '.git', 'logs', 'HEAD'), 'utf-8');
+    return headLog
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .reverse()
+      .slice(0, 12)
+      .map(line => {
+        const match = line.match(/^([0-9a-f]{40}) ([0-9a-f]{40}) .*? (\d{10}) [+-]\d{4}\t(?:commit(?: \(.*\))?: )?(.*)$/i);
+        if (!match) return undefined;
+
+        const [, , fullHash, timestamp, subject] = match;
+        return {
+          hash: fullHash.slice(0, 7),
+          date: new Date(Number(timestamp) * 1000).toISOString().slice(0, 10),
+          subject: subject || fullHash.slice(0, 7),
+          body: subject || '',
+        };
+      })
+      .filter((commit): commit is { hash: string; date: string; subject: string; body: string } => Boolean(commit));
+  } catch {
+    return [];
+  }
+}
+
+function getRecentGitCommits() {
+  return new Promise<{ hash: string; date: string; subject: string; body: string }[]>((resolve) => {
+    const resolveFallback = async () => {
+      resolve(await readRecentGitCommitsFallback());
+    };
+
+    try {
+      execFile('git', ['log', '--max-count=12', '--pretty=format:%h%x1f%ad%x1f%s%x1f%b%x1e', '--date=short'], { cwd: PANEL_DIR }, (error, stdout) => {
+        if (error) {
+          resolveFallback();
+          return;
+        }
+
+        resolve(stdout.split('\x1e').map(record => record.trim()).filter(Boolean).map(record => {
+          const [hash, date, subject, ...bodyParts] = record.split('\x1f');
+          return {
+            hash,
+            date,
+            subject,
+            body: bodyParts.join('\x1f').trim(),
+          };
+        }));
+      });
+    } catch {
+      resolveFallback();
+    }
+  });
+}
+
 // API Routes
+app.get('/api/settings', async (req, res) => {
+  res.json(publicSettings(await getSettings()));
+});
+
+app.put('/api/settings', async (req, res) => {
+  const current = await getSettings();
+  const next: ProgramSettingsFile = {
+    homepageUrl: String(req.body.homepageUrl || current.homepageUrl || 'http://localhost').trim(),
+    aiProvider: ['openai', 'gemini', 'anthropic', 'openai-compatible'].includes(req.body.aiProvider)
+      ? req.body.aiProvider
+      : current.aiProvider,
+    aiModel: String(req.body.aiModel || current.aiModel || '').trim(),
+    aiBaseUrl: String(req.body.aiBaseUrl || '').trim(),
+    aiApiKey: typeof req.body.aiApiKey === 'string' && req.body.aiApiKey.trim()
+      ? req.body.aiApiKey.trim()
+      : current.aiApiKey,
+  };
+
+  await saveSettings(next);
+  pushSystemLog('Program settings updated', 'info', 'settings');
+  res.json(publicSettings(next));
+});
+
+app.post('/api/ai-chat', async (req, res) => {
+  const settings = await getSettings();
+  const messages = clampChatMessages(req.body.messages);
+
+  if (!settings.aiApiKey) {
+    res.status(400).json({ error: 'AI API key is not configured.' });
+    return;
+  }
+
+  if (settings.aiProvider === 'openai-compatible' && !settings.aiBaseUrl) {
+    res.status(400).json({ error: 'Custom base URL is required for OpenAI-compatible providers.' });
+    return;
+  }
+
+  if (messages.length === 0) {
+    res.status(400).json({ error: 'No chat messages provided.' });
+    return;
+  }
+
+  try {
+    let reply = '';
+    if (settings.aiProvider === 'gemini') reply = await callGemini(settings, messages);
+    else if (settings.aiProvider === 'anthropic') reply = await callAnthropic(settings, messages);
+    else reply = await callOpenAICompatible(settings, messages);
+
+    res.json({ reply: reply || 'No response returned.' });
+  } catch (error) {
+    const message = (error as Error).message;
+    pushSystemLog(`AI chat error: ${message}`, 'error', 'ai-chat');
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get('/api/patch-notes', async (req, res) => {
+  const packageInfo = await readJsonFile(PACKAGE_FILE, { version: '0.0.0' });
+  const notes = await readJsonFile(PATCH_NOTES_FILE, []);
+  const commits = await getRecentGitCommits();
+  res.json({
+    version: (packageInfo as any).version || '0.0.0',
+    notes,
+    commits,
+  });
+});
+
 app.get('/api/apps', async (req, res) => {
   const apps = (await getApps()).filter(config => config.enabled !== false);
   const state = await Promise.all(apps.map(async config => {

@@ -16,6 +16,37 @@ export interface AppConfig {
   advancedShell?: boolean;
 }
 
+export type AppView = 'services' | 'settings' | 'ai' | 'patches';
+
+export type SettingsTab = 'apps' | 'logs' | 'general';
+
+export interface ProgramSettings {
+  homepageUrl: string;
+  aiProvider: 'openai' | 'gemini' | 'anthropic' | 'openai-compatible';
+  aiModel: string;
+  aiBaseUrl: string;
+  aiApiKeySet: boolean;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface PatchNote {
+  version: string;
+  date: string;
+  title: string;
+  changes: string[];
+}
+
+export interface GitCommit {
+  hash: string;
+  subject: string;
+  date: string;
+  body?: string;
+}
+
 export interface AppState {
   config: AppConfig;
   status: 'stopped' | 'running';
