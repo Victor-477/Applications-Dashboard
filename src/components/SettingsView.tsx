@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Pencil, RefreshCw, Settings, Trash2, X } from 'lucide-react';
+import { Download, Pencil, RefreshCw, Settings, Trash2, Upload, X } from 'lucide-react';
 import { AppState, AppConfig, ProgramSettings, SettingsTab, SystemLogLine } from '../types';
 import { Translation } from '../i18n';
 
@@ -11,6 +11,7 @@ interface SettingsViewProps {
   onEdit: (config: AppConfig) => void;
   onDelete: (id: string) => Promise<void>;
   onToggleEnabled: (id: string, enabled: boolean) => Promise<void>;
+  onAppsChanged: () => Promise<void>;
   t: Translation;
 }
 
@@ -20,7 +21,7 @@ function formatDate(value: string) {
   return date.toLocaleString();
 }
 
-export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete, onToggleEnabled, t }: SettingsViewProps) {
+export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete, onToggleEnabled, onAppsChanged, t }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [apps, setApps] = useState<AppState[]>([]);
   const [systemLogs, setSystemLogs] = useState<SystemLogLine[]>([]);
@@ -40,6 +41,9 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
   const [exportLimit, setExportLimit] = useState(100);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [clearAfterDownload, setClearAfterDownload] = useState(false);
+  const [replaceInstances, setReplaceInstances] = useState(false);
+  const [instanceImportMessage, setInstanceImportMessage] = useState('');
+  const [instanceImportError, setInstanceImportError] = useState('');
 
   const summary = useMemo(() => {
     return apps.reduce(
@@ -129,6 +133,54 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
 
     setIsExportOpen(false);
     await loadSettings();
+  };
+
+  const handleBackupInstances = async () => {
+    const response = await fetch('/api/apps/export');
+    if (!response.ok) {
+      setInstanceImportError(t.settings.instanceBackupFailed);
+      return;
+    }
+
+    const blob = await response.blob();
+    const disposition = response.headers.get('Content-Disposition') || '';
+    const fileNameMatch = disposition.match(/filename="([^"]+)"/);
+    const fileName = fileNameMatch?.[1] || 'instances-backup.json';
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportInstances = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setInstanceImportMessage('');
+    setInstanceImportError('');
+
+    try {
+      const payload = JSON.parse(await file.text());
+      const appsToImport = Array.isArray(payload) ? payload : payload.apps;
+      const response = await fetch('/api/apps/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apps: appsToImport, replace: replaceInstances }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || t.settings.instanceImportFailed);
+
+      setInstanceImportMessage(`${t.settings.instanceImportSuccess}: ${result.imported}`);
+      await onAppsChanged();
+      await loadSettings();
+    } catch (error) {
+      setInstanceImportError(`${t.settings.instanceImportFailed}: ${(error as Error).message}`);
+    }
   };
 
   const saveProgramSettings = async (event: React.FormEvent) => {
@@ -358,6 +410,47 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
                 </div>
               </section>
 
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.instancesCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.instancesCategoryDescription}</p>
+                </div>
+                <div className="space-y-5 px-5 py-5">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
+                      <Upload className="h-4 w-4" />
+                      {t.settings.importInstances}
+                      <input type="file" accept="application/json,.json" onChange={handleImportInstances} className="sr-only" />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleBackupInstances}
+                      className="flex items-center justify-center gap-2 border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <Download className="h-4 w-4" />
+                      {t.settings.backupInstances}
+                    </button>
+                  </div>
+
+                  <label className="flex items-center justify-between gap-4 border border-gray-200 bg-white px-3 py-3">
+                    <span>
+                      <span className="block text-sm font-semibold text-gray-800">{t.settings.replaceInstances}</span>
+                      <span className="mt-1 block text-xs text-gray-500">{t.settings.replaceInstancesHelp}</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={replaceInstances}
+                      onChange={event => setReplaceInstances(event.target.checked)}
+                    />
+                  </label>
+
+                  <p className="text-xs font-medium text-gray-500">{t.settings.importInstancesHelp}</p>
+                  {instanceImportMessage && <p className="text-sm font-semibold text-green-600">{instanceImportMessage}</p>}
+                  {instanceImportError && <p className="text-sm font-semibold text-red-600">{instanceImportError}</p>}
+                </div>
+              </section>
+
               <div className="flex items-center gap-3 border border-gray-200 bg-white px-5 py-4">
                 <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
                   {t.settings.saveSettings}
@@ -393,7 +486,7 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.1.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.2.0</p>
                   </div>
                 </div>
               </section>

@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import net from 'net';
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 const PORT = Number(process.env.PANEL_PORT || 3000);
 const HOST = process.env.PANEL_HOST || '127.0.0.1';
@@ -66,6 +66,68 @@ async function getApps(): Promise<AppConfig[]> {
 
 async function saveApps(apps: any[]) {
   await fs.writeFile(APPS_FILE, JSON.stringify(apps, null, 2), 'utf-8');
+}
+
+function normalizeText(value: unknown, fallback = '') {
+  return String(value ?? fallback).trim();
+}
+
+function normalizeStringList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map(item => normalizeText(item)).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value.split(',').map(item => item.trim()).filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizeImportedApp(raw: any, index: number, usedIds: Set<string>): AppConfig {
+  const name = normalizeText(raw?.name);
+  const command = normalizeText(raw?.command);
+
+  if (!name || !command) {
+    throw new Error(`Invalid instance at position ${index + 1}: name and command are required.`);
+  }
+
+  const requestedId = normalizeText(raw?.id);
+  const id = requestedId && !usedIds.has(requestedId) ? requestedId : crypto.randomUUID();
+  usedIds.add(id);
+
+  const advancedEnabled = Boolean(raw?.advancedEnabled);
+  return {
+    id,
+    name,
+    command,
+    args: normalizeText(raw?.args),
+    port: normalizeText(raw?.port),
+    cwd: normalizeText(raw?.cwd),
+    dependsOn: normalizeStringList(raw?.dependsOn),
+    shell: raw?.shell !== false,
+    enabled: raw?.enabled !== false,
+    advancedEnabled,
+    alternatePorts: advancedEnabled ? normalizeStringList(raw?.alternatePorts) : [],
+    secondaryCwd: advancedEnabled ? normalizeText(raw?.secondaryCwd) : '',
+    advancedCommand: advancedEnabled ? normalizeText(raw?.advancedCommand) : '',
+    advancedArgs: advancedEnabled ? normalizeText(raw?.advancedArgs) : '',
+    advancedShell: advancedEnabled ? raw?.advancedShell !== false : true,
+  };
+}
+
+function getImportAppsFromPayload(payload: any) {
+  const apps = Array.isArray(payload) ? payload : payload?.apps;
+  if (!Array.isArray(apps)) {
+    throw new Error('Import payload must be an array of instances or an object with an apps array.');
+  }
+  if (apps.length === 0) {
+    throw new Error('Import payload does not contain any instances.');
+  }
+  if (apps.length > 200) {
+    throw new Error('Import payload contains too many instances. Maximum allowed is 200.');
+  }
+  return apps;
 }
 
 function getDefaultSettings(): ProgramSettingsFile {
@@ -903,6 +965,46 @@ app.get('/api/apps/all', async (req, res) => {
     };
   }));
   res.json(state);
+});
+
+app.get('/api/apps/export', async (req, res) => {
+  const packageInfo = await readJsonFile(PACKAGE_FILE, { version: '0.0.0' });
+  const apps = await getApps();
+  const exportedAt = new Date().toISOString();
+  const date = exportedAt.slice(0, 10);
+
+  pushSystemLog(`Instance backup exported: ${apps.length} instances`, 'info', 'settings');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="instances-backup-${date}.json"`);
+  res.json({
+    schema: 'applications-dashboard.instances.v1',
+    version: (packageInfo as any).version || '0.0.0',
+    exportedAt,
+    apps,
+  });
+});
+
+app.post('/api/apps/import', async (req, res) => {
+  try {
+    const incomingApps = getImportAppsFromPayload(req.body);
+    const replace = req.body?.replace === true;
+    const existingApps = await getApps();
+    const usedIds = new Set((replace ? [] : existingApps).map(app => app.id));
+    const importedApps = incomingApps.map((item, index) => normalizeImportedApp(item, index, usedIds));
+
+    if (replace) {
+      await Promise.all(existingApps.map(appConfig => stopConfiguredApp(appConfig.id, appConfig)));
+    }
+
+    const nextApps = replace ? importedApps : [...existingApps, ...importedApps];
+    await saveApps(nextApps);
+    pushSystemLog(`Instance import completed: ${importedApps.length} instances ${replace ? 'replaced current configuration' : 'added to current configuration'}`, 'system', 'settings');
+    res.json({ imported: importedApps.length, total: nextApps.length, replaced: replace });
+  } catch (error) {
+    const message = (error as Error).message;
+    pushSystemLog(`Instance import failed: ${message}`, 'error', 'settings');
+    res.status(400).json({ error: message });
+  }
 });
 
 app.post('/api/apps', async (req, res) => {

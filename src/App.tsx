@@ -353,6 +353,7 @@ export default function App() {
                 onEdit={openEditForm}
                 onDelete={handleDeleteApp}
                 onToggleEnabled={handleToggleEnabled}
+                onAppsChanged={fetchApps}
                 t={t}
               />
             ) : currentView === 'ai' ? (
@@ -423,7 +424,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.1.0</span>
+        <span>Control Panel - Applications Dashboard v2.2.0</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

@@ -1,5 +1,17 @@
 [
   {
+    "version": "2.2.0",
+    "date": "2026-05-26",
+    "title": "Instance import, backup, and patch documentation",
+    "changes": [
+      "Added instance configuration tools to General settings.",
+      "Added JSON import support for configuring multiple instances at once.",
+      "Added JSON backup download for the current instance configuration.",
+      "Added backend validation and system logs for instance import and backup actions.",
+      "Added a project patch summary file to make future GitHub commits easier to prepare."
+    ]
+  },
+  {
     "version": "2.1.0",
     "date": "2026-05-26",
     "title": "Structured settings and patch detail view",
