@@ -23,6 +23,7 @@ interface AppConfig {
   cwd: string;
   dependsOn?: string[];
   shell?: boolean;
+  enabled?: boolean;
   advancedEnabled?: boolean;
   alternatePorts?: string[];
   secondaryCwd?: string;
@@ -35,6 +36,7 @@ const runningProcesses = new Map<string, ChildProcess[]>();
 
 // Log history and active clients
 const logHistory = new Map<string, { timestamp: string; type: string; message: string }[]>();
+const systemLogHistory: { id: string; timestamp: string; type: 'info' | 'error' | 'system'; source: string; message: string }[] = [];
 const logClients = new Set<express.Response>();
 
 async function getApps(): Promise<AppConfig[]> {
@@ -65,6 +67,7 @@ function getDefaultApps() {
       port: "3307",
       cwd: "../database/mariadb/mariadb-11.4.5-winx64/bin",
       shell: false,
+      enabled: true,
     },
     {
       id: "smart40-backend",
@@ -75,6 +78,7 @@ function getDefaultApps() {
       cwd: "../backend",
       dependsOn: ["smart40-database"],
       shell: false,
+      enabled: true,
     },
     {
       id: "smart40-erp",
@@ -85,6 +89,7 @@ function getDefaultApps() {
       cwd: "../erp",
       dependsOn: ["smart40-backend"],
       shell: false,
+      enabled: true,
     },
     {
       id: "smart40-loja",
@@ -95,6 +100,7 @@ function getDefaultApps() {
       cwd: "../loja",
       dependsOn: ["smart40-backend"],
       shell: false,
+      enabled: true,
     },
     {
       id: "smart40-nodered",
@@ -105,6 +111,7 @@ function getDefaultApps() {
       cwd: "../NodeRed",
       dependsOn: ["smart40-backend"],
       shell: false,
+      enabled: true,
     },
   ];
 }
@@ -160,7 +167,7 @@ function runCommand(command: string, args: string[], cwd: string, appId: string,
     });
 
     const timer = setTimeout(() => {
-      stopProcessTreeByPid(proc.pid).finally(() => reject(new Error(`Timeout executando ${command} ${args.join(' ')}`)));
+      stopProcessTreeByPid(proc.pid).finally(() => reject(new Error(`Timeout while running ${command} ${args.join(' ')}`)));
     }, timeoutMs);
 
     proc.stdout.on('data', data => broadcastLog(appId, data.toString(), 'info'));
@@ -171,7 +178,7 @@ function runCommand(command: string, args: string[], cwd: string, appId: string,
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`${command} ${args.join(' ')} finalizou com codigo ${code}`));
+        reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
       }
     });
   });
@@ -249,7 +256,7 @@ function findPidsByPort(port?: string) {
 async function stopPidsByPort(port?: string, appId?: string) {
   const pids = await findPidsByPort(port);
   for (const pid of pids) {
-    if (appId) broadcastLog(appId, `--- Encerrando PID ${pid} pela porta ${port} ---`, 'system');
+    if (appId) broadcastLog(appId, `--- Stopping PID ${pid} on port ${port} ---`, 'system');
     await stopProcessTreeByPid(pid);
   }
   return pids.length;
@@ -370,7 +377,7 @@ function spawnTrackedProcess(options: {
       });
 
   trackRunningProcess(options.id, proc);
-  broadcastLog(options.id, `--- Iniciando ${options.label}: ${fullCmd} (PID: ${proc.pid}) ---`, 'system');
+  broadcastLog(options.id, `--- Starting ${options.label}: ${fullCmd} (PID: ${proc.pid}) ---`, 'system');
 
   proc.stdout.on('data', (data) => {
     broadcastLog(options.id, data.toString(), 'info');
@@ -382,42 +389,60 @@ function spawnTrackedProcess(options: {
 
   proc.on('close', (code) => {
     removeRunningProcess(options.id, proc);
-    broadcastLog(options.id, `--- Processo ${options.label} encerrado com codigo ${code} ---`, 'system');
+    broadcastLog(options.id, `--- ${options.label} process exited with code ${code} ---`, 'system');
   });
 
   proc.on('error', (err) => {
-    broadcastLog(options.id, `Erro ao iniciar processo ${options.label}: ${err.message}`, 'error');
+    broadcastLog(options.id, `Failed to start ${options.label} process: ${err.message}`, 'error');
     removeRunningProcess(options.id, proc);
   });
 
   return proc;
 }
 
+async function stopConfiguredApp(id: string, appConfig?: AppConfig) {
+  const processes = getRunningAppProcesses(id);
+  if (processes.length > 0) {
+    broadcastLog(id, '--- Stop requested for process ---', 'system');
+    await Promise.all(processes.map(proc => stopProcessTree(proc)));
+    runningProcesses.delete(id);
+    return { stopped: true, stoppedByPort: 0 };
+  }
+
+  let stoppedByPort = 0;
+  for (const port of getConfiguredPorts(appConfig)) {
+    stoppedByPort += await stopPidsByPort(port, id);
+  }
+
+  return { stopped: stoppedByPort > 0, stoppedByPort };
+}
+
 async function ensureDatabasePrepared(appId = 'smart40-database') {
   const backendDir = path.join(PROJECT_ROOT, 'backend');
   if (!fsExists(backendDir)) {
-    broadcastLog(appId, `Backend nao encontrado em ${backendDir}`, 'error');
+    broadcastLog(appId, `Backend not found at ${backendDir}`, 'error');
     return;
   }
 
-  broadcastLog(appId, '--- Preparando schema do banco MES ---', 'system');
+  broadcastLog(appId, '--- Preparing MES database schema ---', 'system');
   await runCommand('npm', ['run', 'db:migrate'], backendDir, appId, 180000);
-  broadcastLog(appId, '--- Inserindo/atualizando dados padrao do MES ---', 'system');
+  broadcastLog(appId, '--- Inserting/updating MES default data ---', 'system');
   await runCommand('npm', ['run', 'seed:test-data'], backendDir, appId, 180000);
-  broadcastLog(appId, '--- Banco MES pronto para Backend, ERP e Loja ---', 'system');
+  broadcastLog(appId, '--- MES database ready for Backend, ERP, and Store ---', 'system');
 }
 
 async function startConfiguredApp(id: string, apps: any[], visited = new Set<string>()) {
   if (visited.has(id)) {
-    throw new Error(`Dependencia circular detectada em ${id}`);
+    throw new Error(`Circular dependency detected at ${id}`);
   }
   visited.add(id);
 
   const appConfig = apps.find(a => a.id === id);
   if (!appConfig) throw new Error(`App not found: ${id}`);
+  if (appConfig.enabled === false) throw new Error(`App disabled: ${id}`);
 
   for (const dependencyId of appConfig.dependsOn || []) {
-    broadcastLog(id, `--- Garantindo dependencia: ${dependencyId} ---`, 'system');
+    broadcastLog(id, `--- Ensuring dependency: ${dependencyId} ---`, 'system');
     await startConfiguredApp(dependencyId, apps, visited);
   }
 
@@ -432,7 +457,7 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
   const runtimePort = await getRuntimePort(appConfig);
   if (!runtimePort && getConfiguredPorts(appConfig).length > 0) {
     const openPort = await getFirstOpenPort(appConfig);
-    broadcastLog(id, `--- Porta ${openPort || appConfig.port} ja esta ativa. Start ignorado para evitar duplicidade. ---`, 'system');
+    broadcastLog(id, `--- Port ${openPort || appConfig.port} is already active. Start skipped to avoid duplication. ---`, 'system');
     if (id === 'smart40-database') {
       await ensureDatabasePrepared(id);
     }
@@ -447,7 +472,7 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
   };
 
   if (runtimePort && runtimePort !== appConfig.port) {
-    broadcastLog(id, `--- Porta principal indisponivel. Tentando porta alternativa ${runtimePort}. ---`, 'system');
+    broadcastLog(id, `--- Primary port unavailable. Trying alternative port ${runtimePort}. ---`, 'system');
   }
 
   const proc = spawnTrackedProcess({
@@ -457,7 +482,7 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
     cwd,
     shell: appConfig.shell !== false,
     env,
-    label: 'principal'
+    label: 'main'
   });
 
   if (appConfig.advancedEnabled && appConfig.advancedCommand) {
@@ -468,7 +493,7 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
       cwd: resolveCwd(appConfig.secondaryCwd || appConfig.cwd),
       shell: appConfig.advancedShell !== false,
       env,
-      label: 'avancado'
+      label: 'advanced'
     });
   }
 
@@ -494,14 +519,116 @@ function broadcastLog(appId: string, message: string, type: 'info' | 'error' | '
   history.push({ timestamp, type, message });
   if (history.length > 1000) history.shift(); // Keep last 1000 lines
 
+  if (type === 'system' || type === 'error') {
+    pushSystemLog(message.replace(/\n$/, ''), type, appId);
+  }
+
   const data = JSON.stringify(logEntry);
   logClients.forEach(client => {
     client.write(`data: ${data}\n\n`);
   });
 }
 
+function pushSystemLog(message: string, type: 'info' | 'error' | 'system' = 'info', source = 'system') {
+  systemLogHistory.push({
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    type,
+    source,
+    message,
+  });
+  if (systemLogHistory.length > 2000) systemLogHistory.shift();
+}
+
+function csvEscape(value: string) {
+  return `"${String(value || '').replace(/"/g, '""')}"`;
+}
+
+function getSystemLogsForExport(query: express.Request['query']) {
+  const source = String(query.source || 'all');
+  const limit = Number(query.limit);
+  let logs = systemLogHistory.filter(log => source === 'all' || log.source === source);
+
+  if (Number.isInteger(limit) && limit > 0) {
+    logs = logs.slice(-limit);
+  }
+
+  return logs;
+}
+
+function serializeSystemLogs(logs: typeof systemLogHistory, format: string) {
+  const normalizedFormat = ['csv', 'txt', 'json', 'ndjson', 'log'].includes(format) ? format : 'csv';
+
+  if (normalizedFormat === 'json') {
+    return {
+      body: JSON.stringify(logs, null, 2),
+      contentType: 'application/json; charset=utf-8',
+      extension: 'json',
+    };
+  }
+
+  if (normalizedFormat === 'ndjson') {
+    return {
+      body: logs.map(log => JSON.stringify(log)).join('\n'),
+      contentType: 'application/x-ndjson; charset=utf-8',
+      extension: 'ndjson',
+    };
+  }
+
+  if (normalizedFormat === 'txt') {
+    return {
+      body: logs.map(log => `${log.timestamp}\t${log.type}\t${log.source}\t${log.message}`).join('\n'),
+      contentType: 'text/plain; charset=utf-8',
+      extension: 'txt',
+    };
+  }
+
+  if (normalizedFormat === 'log') {
+    return {
+      body: logs.map(log => `[${log.timestamp}] [${log.type.toUpperCase()}] [${log.source}] ${log.message}`).join('\n'),
+      contentType: 'text/plain; charset=utf-8',
+      extension: 'log',
+    };
+  }
+
+  const rows = [
+    ['timestamp', 'type', 'source', 'message'],
+    ...logs.map(log => [log.timestamp, log.type, log.source, log.message])
+  ];
+
+  return {
+    body: rows.map(row => row.map(csvEscape).join(',')).join('\n'),
+    contentType: 'text/csv; charset=utf-8',
+    extension: 'csv',
+  };
+}
+
+function clearExportedSystemLogs(logs: typeof systemLogHistory) {
+  const exportedIds = new Set(logs.map(log => log.id));
+  for (let index = systemLogHistory.length - 1; index >= 0; index -= 1) {
+    if (exportedIds.has(systemLogHistory[index].id)) {
+      systemLogHistory.splice(index, 1);
+    }
+  }
+}
+
 // API Routes
 app.get('/api/apps', async (req, res) => {
+  const apps = (await getApps()).filter(config => config.enabled !== false);
+  const state = await Promise.all(apps.map(async config => {
+    const processes = getRunningAppProcesses(config.id);
+    const activePort = await getFirstOpenPort(config);
+    return {
+      config,
+      status: processes.length > 0 || activePort ? 'running' : 'stopped',
+      pid: processes[0]?.pid,
+      activePort
+    };
+  }));
+  res.json(state);
+});
+
+app.get('/api/apps/all', async (req, res) => {
   const apps = await getApps();
   const state = await Promise.all(apps.map(async config => {
     const processes = getRunningAppProcesses(config.id);
@@ -521,6 +648,7 @@ app.post('/api/apps', async (req, res) => {
   const newApp = {
     id: crypto.randomUUID(),
     ...req.body,
+    enabled: req.body.enabled !== false,
     advancedEnabled,
     alternatePorts: advancedEnabled ? (req.body.alternatePorts || []) : [],
     secondaryCwd: advancedEnabled ? (req.body.secondaryCwd || '') : '',
@@ -531,6 +659,7 @@ app.post('/api/apps', async (req, res) => {
   const apps = await getApps();
   apps.push(newApp);
   await saveApps(apps);
+  pushSystemLog(`Instance created: ${newApp.name}`, 'info', newApp.id);
   res.json(newApp);
 });
 
@@ -558,20 +687,41 @@ app.put('/api/apps/:id', async (req, res) => {
 
   apps[index] = updated;
   await saveApps(apps);
-  broadcastLog(id, '--- Configuracao da instancia atualizada. Reinicie o servico para aplicar comandos, portas ou diretorios alterados. ---', 'system');
+  pushSystemLog(`Instance updated: ${updated.name}`, 'info', id);
+  broadcastLog(id, '--- Instance configuration updated. Restart the service to apply command, port, or directory changes. ---', 'system');
+  res.json(updated);
+});
+
+app.put('/api/apps/:id/enabled', async (req, res) => {
+  const id = req.params.id;
+  const apps = await getApps();
+  const index = apps.findIndex(a => a.id === id);
+  if (index === -1) {
+    res.status(404).json({ error: 'App not found' });
+    return;
+  }
+
+  const enabled = Boolean(req.body.enabled);
+  const updated = { ...apps[index], enabled };
+  apps[index] = updated;
+  await saveApps(apps);
+
+  if (!enabled) {
+    await stopConfiguredApp(id, updated);
+  }
+
+  pushSystemLog(`Instance ${enabled ? 'enabled' : 'disabled'}: ${updated.name}`, 'system', id);
   res.json(updated);
 });
 
 app.delete('/api/apps/:id', async (req, res) => {
   const id = req.params.id;
-  const processes = getRunningAppProcesses(id);
-  if (processes.length > 0) {
-    await Promise.all(processes.map(proc => stopProcessTree(proc)));
-    runningProcesses.delete(id);
-  }
   let apps = await getApps();
+  const deletedApp = apps.find(a => a.id === id);
+  await stopConfiguredApp(id, deletedApp);
   apps = apps.filter(a => a.id !== id);
   await saveApps(apps);
+  pushSystemLog(`Instance removed: ${deletedApp?.name || id}`, 'system', id);
   res.json({ success: true });
 });
 
@@ -581,10 +731,13 @@ app.post('/api/apps/:id/start', async (req, res) => {
 
   try {
     const result = await startConfiguredApp(id, apps);
+    const appConfig = apps.find(a => a.id === id);
+    pushSystemLog(`Start requested: ${appConfig?.name || id}`, 'system', id);
     res.json(result);
   } catch (error) {
     const message = (error as Error).message;
     const status = message.startsWith('App not found') ? 404 : 500;
+    pushSystemLog(`Failed to start ${id}: ${message}`, 'error', id);
     res.status(status).json({ error: message });
   }
 });
@@ -593,25 +746,39 @@ app.post('/api/apps/:id/stop', async (req, res) => {
   const id = req.params.id;
   const apps = await getApps();
   const appConfig = apps.find(a => a.id === id);
-  const processes = getRunningAppProcesses(id);
-  if (processes.length > 0) {
-    broadcastLog(id, '--- Solicitando parada do processo ---', 'system');
-    await Promise.all(processes.map(proc => stopProcessTree(proc)));
-    runningProcesses.delete(id);
-    res.json({ success: true });
-    return;
-  }
-
-  let stoppedByPort = 0;
-  for (const port of getConfiguredPorts(appConfig)) {
-    stoppedByPort += await stopPidsByPort(port, id);
-  }
-  if (stoppedByPort > 0) {
-    res.json({ success: true, stoppedByPort });
+  const result = await stopConfiguredApp(id, appConfig);
+  if (result.stopped) {
+    pushSystemLog(`Stop requested: ${appConfig?.name || id}`, 'system', id);
+    res.json({ success: true, stoppedByPort: result.stoppedByPort });
     return;
   }
 
   res.status(400).json({ error: 'Not running' });
+});
+
+app.get('/api/system-logs', (req, res) => {
+  res.json(systemLogHistory.slice().reverse());
+});
+
+app.get('/api/system-logs/export', (req, res) => {
+  const format = String(req.query.format || 'csv').toLowerCase();
+  const logs = getSystemLogsForExport(req.query);
+  const output = serializeSystemLogs(logs, format);
+
+  if (req.query.clear === 'true') {
+    clearExportedSystemLogs(logs);
+  }
+
+  res.setHeader('Content-Type', output.contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="system-logs.${output.extension}"`);
+  res.send(output.body);
+});
+
+app.get('/api/system-logs.csv', (req, res) => {
+  const output = serializeSystemLogs(systemLogHistory, 'csv');
+  res.setHeader('Content-Type', output.contentType);
+  res.setHeader('Content-Disposition', 'attachment; filename="system-logs.csv"');
+  res.send(output.body);
 });
 
 app.get('/api/apps/:id/logs', (req, res) => {

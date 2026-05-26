@@ -8,6 +8,7 @@ import { ChevronDown, Globe2, Home, Layers, Plus, Settings } from 'lucide-react'
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import LogViewer from './components/LogViewer';
+import SettingsView from './components/SettingsView';
 import { AppState, AppConfig, LogLine } from './types';
 import { isLanguage, Language, languageOptions, translations } from './i18n';
 
@@ -18,17 +19,19 @@ function getInitialLanguage(): Language {
 
 export default function App() {
   const [apps, setApps] = useState<AppState[]>([]);
+  const [currentView, setCurrentView] = useState<'services' | 'settings'>('services');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingApp, setEditingApp] = useState<AppConfig | null>(null);
   const [logs, setLogs] = useState<Record<string, LogLine[]>>({});
   const [language, setLanguage] = useState<Language>(getInitialLanguage);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
+  const [settingsRefreshKey, setSettingsRefreshKey] = useState(0);
   const t = translations[language];
   const selectedLanguage = languageOptions.find(option => option.code === language)!;
   const selectedApp = apps.find(a => a.config.id === selectedAppId);
   const hasConfigOpen = isFormOpen;
-  const hasTerminalOpen = Boolean(selectedAppId) && !hasConfigOpen;
+  const hasTerminalOpen = currentView === 'services' && Boolean(selectedAppId) && !hasConfigOpen;
   const hasSidePanelOpen = hasConfigOpen || hasTerminalOpen;
 
   const statusSummary = apps.reduce(
@@ -108,7 +111,8 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
-    fetchApps();
+    await fetchApps();
+    setSettingsRefreshKey(key => key + 1);
     setIsFormOpen(false);
   };
 
@@ -119,7 +123,8 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(config),
     });
-    fetchApps();
+    await fetchApps();
+    setSettingsRefreshKey(key => key + 1);
     setEditingApp(null);
     setIsFormOpen(false);
   };
@@ -144,7 +149,8 @@ export default function App() {
   const handleDeleteApp = async (id: string) => {
     await fetch(`/api/apps/${id}`, { method: 'DELETE' });
     if (selectedAppId === id) setSelectedAppId(null);
-    fetchApps();
+    await fetchApps();
+    setSettingsRefreshKey(key => key + 1);
   };
 
   const handleStart = async (id: string) => {
@@ -155,6 +161,31 @@ export default function App() {
   const handleStop = async (id: string) => {
     await fetch(`/api/apps/${id}/stop`, { method: 'POST' });
     fetchApps();
+  };
+
+  const handleToggleEnabled = async (id: string, enabled: boolean) => {
+    await fetch(`/api/apps/${id}/enabled`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    if (!enabled && selectedAppId === id) setSelectedAppId(null);
+    await fetchApps();
+    setSettingsRefreshKey(key => key + 1);
+  };
+
+  const openServicesView = () => {
+    setCurrentView('services');
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
+  const openSettingsView = () => {
+    setCurrentView('settings');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+    setSettingsRefreshKey(key => key + 1);
   };
 
   return (
@@ -224,61 +255,74 @@ export default function App() {
           <div className="flex w-full flex-col items-center gap-4">
             <button
               type="button"
-              className="relative flex h-12 w-full items-center justify-center text-blue-600"
+              onClick={openServicesView}
+              className={`relative flex h-12 w-full items-center justify-center ${currentView === 'services' ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
               title="Services"
             >
-              <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />
+              {currentView === 'services' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
               <Home className="h-6 w-6" />
             </button>
           </div>
 
           <button
             type="button"
-            onClick={openCreateForm}
-            className="flex h-10 w-10 items-center justify-center rounded-md text-gray-700 transition-colors hover:bg-gray-100 hover:text-blue-600"
-            title={t.newApp}
+            onClick={openSettingsView}
+            className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'settings' ? 'text-blue-600' : 'text-gray-700'}`}
+            title={t.settings.title}
           >
+            {currentView === 'settings' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
             <Settings className="h-5 w-5" />
           </button>
         </aside>
 
         <section className="flex min-w-0 flex-1 gap-6 overflow-hidden px-6 py-6">
           <div className={`min-w-0 overflow-y-auto pr-1 transition-[flex-basis] duration-300 ${hasSidePanelOpen ? 'basis-[49%]' : 'basis-full'}`}>
-            <div className="mb-6 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">Services</h2>
-                <p className="mt-1 text-sm text-gray-500">{t.registeredApps}</p>
-              </div>
-              <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-600 shadow-sm ring-1 ring-gray-200">
-                {apps.length}
-              </div>
-            </div>
-
-            {apps.length > 0 ? (
-              <div className={`grid gap-6 pb-8 ${hasSidePanelOpen ? 'grid-cols-[repeat(auto-fit,minmax(240px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(258px,1fr))]'}`}>
-                {apps.map(app => (
-                  <AppCard
-                    key={app.config.id}
-                    app={app}
-                    hasError={(logs[app.config.id] || []).some(log => log.type === 'error')}
-                    isSelected={selectedAppId === app.config.id}
-                    onSelect={() => setSelectedAppId(app.config.id)}
-                    onStart={() => handleStart(app.config.id)}
-                    onStop={() => handleStop(app.config.id)}
-                    onEdit={() => openEditForm(app.config)}
-                    onDelete={() => handleDeleteApp(app.config.id)}
-                    t={t}
-                  />
-                ))}
-              </div>
+            {currentView === 'settings' ? (
+              <SettingsView
+                refreshKey={settingsRefreshKey}
+                onEdit={openEditForm}
+                onDelete={handleDeleteApp}
+                onToggleEnabled={handleToggleEnabled}
+                t={t}
+              />
             ) : (
-              <div className="flex min-h-[360px] flex-col items-center justify-center rounded-md border border-dashed border-gray-300 bg-white/70 px-6 text-center">
-                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm">
-                  <Layers className="h-6 w-6" />
+              <>
+                <div className="mb-6 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900">Services</h2>
+                    <p className="mt-1 text-sm text-gray-500">{t.registeredApps}</p>
+                  </div>
+                  <div className="rounded-full bg-white px-3 py-1 text-xs font-bold text-gray-600 shadow-sm ring-1 ring-gray-200">
+                    {apps.length}
+                  </div>
                 </div>
-                <h3 className="mb-1 text-sm font-semibold text-gray-800">{t.noAppsTitle}</h3>
-                <p className="max-w-xs text-xs leading-relaxed text-gray-500">{t.noAppsDescription}</p>
-              </div>
+
+                {apps.length > 0 ? (
+                  <div className={`grid gap-6 pb-8 ${hasSidePanelOpen ? 'grid-cols-[repeat(auto-fit,minmax(240px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(258px,1fr))]'}`}>
+                    {apps.map(app => (
+                      <AppCard
+                        key={app.config.id}
+                        app={app}
+                        hasError={(logs[app.config.id] || []).some(log => log.type === 'error')}
+                        isSelected={selectedAppId === app.config.id}
+                        onSelect={() => setSelectedAppId(app.config.id)}
+                        onStart={() => handleStart(app.config.id)}
+                        onStop={() => handleStop(app.config.id)}
+                        onEdit={() => openEditForm(app.config)}
+                        t={t}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex min-h-[360px] flex-col items-center justify-center rounded-md border border-dashed border-gray-300 bg-white/70 px-6 text-center">
+                    <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm">
+                      <Layers className="h-6 w-6" />
+                    </div>
+                    <h3 className="mb-1 text-sm font-semibold text-gray-800">{t.noAppsTitle}</h3>
+                    <p className="max-w-xs text-xs leading-relaxed text-gray-500">{t.noAppsDescription}</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

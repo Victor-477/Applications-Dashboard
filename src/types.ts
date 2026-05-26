@@ -7,6 +7,7 @@ export interface AppConfig {
   cwd: string;
   dependsOn?: string[];
   shell?: boolean;
+  enabled?: boolean;
   advancedEnabled?: boolean;
   alternatePorts?: string[];
   secondaryCwd?: string;
@@ -26,5 +27,13 @@ export interface LogLine {
   id: string;
   timestamp: string;
   type: 'info' | 'error' | 'system';
+  message: string;
+}
+
+export interface SystemLogLine {
+  id: string;
+  timestamp: string;
+  type: 'info' | 'error' | 'system';
+  source: string;
   message: string;
 }

@@ -1,4 +1,4 @@
-import { Globe2, Play, RotateCw, Settings, Square, Trash2 } from 'lucide-react';
+import { Globe2, Play, RotateCw, Settings, Square } from 'lucide-react';
 import { AppState } from '../types';
 import { Translation } from '../i18n';
 
@@ -10,11 +10,10 @@ interface AppCardProps {
   onStart: () => void;
   onStop: () => void;
   onEdit: () => void;
-  onDelete: () => void;
   t: Translation;
 }
 
-export default function AppCard({ app, hasError, isSelected, onSelect, onStart, onStop, onEdit, onDelete, t }: AppCardProps) {
+export default function AppCard({ app, hasError, isSelected, onSelect, onStart, onStop, onEdit, t }: AppCardProps) {
   const isRunning = app.status === 'running';
   const statusTone = isRunning ? 'bg-[#62b43d]' : hasError ? 'bg-[#d60000]' : 'bg-gray-400';
   const statusLabel = isRunning ? 'running' : hasError ? 'failed' : 'stopped';
@@ -35,18 +34,6 @@ export default function AppCard({ app, hasError, isSelected, onSelect, onStart, 
       }`}
       onClick={onSelect}
     >
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDelete();
-        }}
-        className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded text-gray-300 opacity-0 transition-colors hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-        title={t.delete}
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-
       <div className="min-w-0 pr-6">
         <h3 className="truncate text-[24px] font-normal leading-tight text-gray-950" title={app.config.name}>
           {app.config.name}
