@@ -3,8 +3,14 @@ import 'dotenv/config';
 import { spawn, ChildProcess, execFile } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
 import net from 'net';
+import { getImportAppsFromPayload, normalizeImportedApp } from './server/appImport';
+import { getDefaultApps } from './server/defaultApps';
+import { readJsonFile } from './server/fileUtils';
+import { getPatchNotesPayload } from './server/patchNotes';
+import { getDefaultSettings, normalizeAccentColor, normalizeThemeMode, publicSettings } from './server/settingsUtils';
+import { clearExportedSystemLogs, getSystemLogsForExport, serializeSystemLogs } from './server/systemLogs';
+import type { AppConfig, ProgramSettingsFile, SystemLogEntry } from './server/types';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -18,39 +24,12 @@ const SETTINGS_FILE = path.join(PANEL_DIR, 'settings.json');
 const PATCH_NOTES_FILE = path.join(PANEL_DIR, 'patch-notes.json');
 const PATCH_SUMMARY_FILE = path.join(PANEL_DIR, 'PROJECT_PATCH_SUMMARY.md');
 const PACKAGE_FILE = path.join(PANEL_DIR, 'package.json');
-interface AppConfig {
-  id: string;
-  name: string;
-  command: string;
-  args: string;
-  port: string;
-  cwd: string;
-  dependsOn?: string[];
-  shell?: boolean;
-  enabled?: boolean;
-  advancedEnabled?: boolean;
-  alternatePorts?: string[];
-  secondaryCwd?: string;
-  advancedCommand?: string;
-  advancedArgs?: string;
-  advancedShell?: boolean;
-}
-
-interface ProgramSettingsFile {
-  homepageUrl: string;
-  aiProvider: 'openai' | 'gemini' | 'anthropic' | 'openai-compatible';
-  aiModel: string;
-  aiBaseUrl: string;
-  aiApiKey: string;
-  themeMode: 'light' | 'dark';
-  accentColor: string;
-}
 
 const runningProcesses = new Map<string, ChildProcess[]>();
 
 // Log history and active clients
 const logHistory = new Map<string, { timestamp: string; type: string; message: string }[]>();
-const systemLogHistory: { id: string; timestamp: string; type: 'info' | 'error' | 'system'; source: string; message: string }[] = [];
+const systemLogHistory: SystemLogEntry[] = [];
 const logClients = new Set<express.Response>();
 
 async function getApps(): Promise<AppConfig[]> {
@@ -71,80 +50,6 @@ async function saveApps(apps: any[]) {
   await fs.writeFile(APPS_FILE, JSON.stringify(apps, null, 2), 'utf-8');
 }
 
-function normalizeText(value: unknown, fallback = '') {
-  return String(value ?? fallback).trim();
-}
-
-function normalizeStringList(value: unknown) {
-  if (Array.isArray(value)) {
-    return value.map(item => normalizeText(item)).filter(Boolean);
-  }
-
-  if (typeof value === 'string') {
-    return value.split(',').map(item => item.trim()).filter(Boolean);
-  }
-
-  return [];
-}
-
-function normalizeImportedApp(raw: any, index: number, usedIds: Set<string>): AppConfig {
-  const name = normalizeText(raw?.name);
-  const command = normalizeText(raw?.command);
-
-  if (!name || !command) {
-    throw new Error(`Invalid instance at position ${index + 1}: name and command are required.`);
-  }
-
-  const requestedId = normalizeText(raw?.id);
-  const id = requestedId && !usedIds.has(requestedId) ? requestedId : crypto.randomUUID();
-  usedIds.add(id);
-
-  const advancedEnabled = Boolean(raw?.advancedEnabled);
-  return {
-    id,
-    name,
-    command,
-    args: normalizeText(raw?.args),
-    port: normalizeText(raw?.port),
-    cwd: normalizeText(raw?.cwd),
-    dependsOn: normalizeStringList(raw?.dependsOn),
-    shell: raw?.shell !== false,
-    enabled: raw?.enabled !== false,
-    advancedEnabled,
-    alternatePorts: advancedEnabled ? normalizeStringList(raw?.alternatePorts) : [],
-    secondaryCwd: advancedEnabled ? normalizeText(raw?.secondaryCwd) : '',
-    advancedCommand: advancedEnabled ? normalizeText(raw?.advancedCommand) : '',
-    advancedArgs: advancedEnabled ? normalizeText(raw?.advancedArgs) : '',
-    advancedShell: advancedEnabled ? raw?.advancedShell !== false : true,
-  };
-}
-
-function getImportAppsFromPayload(payload: any) {
-  const apps = Array.isArray(payload) ? payload : payload?.apps;
-  if (!Array.isArray(apps)) {
-    throw new Error('Import payload must be an array of instances or an object with an apps array.');
-  }
-  if (apps.length === 0) {
-    throw new Error('Import payload does not contain any instances.');
-  }
-  if (apps.length > 200) {
-    throw new Error('Import payload contains too many instances. Maximum allowed is 200.');
-  }
-  return apps;
-}
-
-function getDefaultSettings(): ProgramSettingsFile {
-  return {
-    homepageUrl: 'http://localhost',
-    aiProvider: 'openai',
-    aiModel: 'gpt-4o-mini',
-    aiBaseUrl: '',
-    aiApiKey: '',
-    themeMode: 'light',
-    accentColor: '#009dea',
-  };
-}
-
 async function getSettings(): Promise<ProgramSettingsFile> {
   try {
     const data = await fs.readFile(SETTINGS_FILE, 'utf-8');
@@ -161,86 +66,6 @@ async function getSettings(): Promise<ProgramSettingsFile> {
 
 async function saveSettings(settings: ProgramSettingsFile) {
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
-}
-
-function normalizeThemeMode(value: unknown): 'light' | 'dark' {
-  return value === 'dark' ? 'dark' : 'light';
-}
-
-function normalizeAccentColor(value: unknown, fallback = '#009dea') {
-  const color = String(value || fallback).trim();
-  return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
-}
-
-function publicSettings(settings: ProgramSettingsFile) {
-  return {
-    homepageUrl: settings.homepageUrl,
-    aiProvider: settings.aiProvider,
-    aiModel: settings.aiModel,
-    aiBaseUrl: settings.aiBaseUrl,
-    aiApiKeySet: Boolean(settings.aiApiKey),
-    themeMode: normalizeThemeMode(settings.themeMode),
-    accentColor: normalizeAccentColor(settings.accentColor),
-  };
-}
-
-function getDefaultApps() {
-  return [
-    {
-      id: "smart40-database",
-      name: "Banco de Dados Local",
-      command: "mariadbd.exe",
-      args: "--datadir=..\\..\\..\\data --port=3307 --bind-address=127.0.0.1 --console",
-      port: "3307",
-      cwd: "../database/mariadb/mariadb-11.4.5-winx64/bin",
-      shell: false,
-      enabled: true,
-    },
-    {
-      id: "smart40-backend",
-      name: "Backend API",
-      command: "node",
-      args: "-r dotenv/config -r ts-node/register -r tsconfig-paths/register src/index.ts",
-      port: "5448",
-      cwd: "../backend",
-      dependsOn: ["smart40-database"],
-      shell: false,
-      enabled: true,
-    },
-    {
-      id: "smart40-erp",
-      name: "ERP",
-      command: "node",
-      args: "node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173",
-      port: "5173",
-      cwd: "../erp",
-      dependsOn: ["smart40-backend"],
-      shell: false,
-      enabled: true,
-    },
-    {
-      id: "smart40-loja",
-      name: "Loja Virtual",
-      command: "node",
-      args: "node_modules/vite/bin/vite.js --host 127.0.0.1 --port 8000",
-      port: "8000",
-      cwd: "../loja",
-      dependsOn: ["smart40-backend"],
-      shell: false,
-      enabled: true,
-    },
-    {
-      id: "smart40-nodered",
-      name: "Node-RED",
-      command: "cmd.exe",
-      args: "/c iniciar-node-red.bat",
-      port: "1880",
-      cwd: "../NodeRed",
-      dependsOn: ["smart40-backend"],
-      shell: false,
-      enabled: true,
-    },
-  ];
 }
 
 function resolveCwd(cwd?: string) {
@@ -667,78 +492,6 @@ function pushSystemLog(message: string, type: 'info' | 'error' | 'system' = 'inf
   if (systemLogHistory.length > 2000) systemLogHistory.shift();
 }
 
-function csvEscape(value: string) {
-  return `"${String(value || '').replace(/"/g, '""')}"`;
-}
-
-function getSystemLogsForExport(query: express.Request['query']) {
-  const source = String(query.source || 'all');
-  const limit = Number(query.limit);
-  let logs = systemLogHistory.filter(log => source === 'all' || log.source === source);
-
-  if (Number.isInteger(limit) && limit > 0) {
-    logs = logs.slice(-limit);
-  }
-
-  return logs;
-}
-
-function serializeSystemLogs(logs: typeof systemLogHistory, format: string) {
-  const normalizedFormat = ['csv', 'txt', 'json', 'ndjson', 'log'].includes(format) ? format : 'csv';
-
-  if (normalizedFormat === 'json') {
-    return {
-      body: JSON.stringify(logs, null, 2),
-      contentType: 'application/json; charset=utf-8',
-      extension: 'json',
-    };
-  }
-
-  if (normalizedFormat === 'ndjson') {
-    return {
-      body: logs.map(log => JSON.stringify(log)).join('\n'),
-      contentType: 'application/x-ndjson; charset=utf-8',
-      extension: 'ndjson',
-    };
-  }
-
-  if (normalizedFormat === 'txt') {
-    return {
-      body: logs.map(log => `${log.timestamp}\t${log.type}\t${log.source}\t${log.message}`).join('\n'),
-      contentType: 'text/plain; charset=utf-8',
-      extension: 'txt',
-    };
-  }
-
-  if (normalizedFormat === 'log') {
-    return {
-      body: logs.map(log => `[${log.timestamp}] [${log.type.toUpperCase()}] [${log.source}] ${log.message}`).join('\n'),
-      contentType: 'text/plain; charset=utf-8',
-      extension: 'log',
-    };
-  }
-
-  const rows = [
-    ['timestamp', 'type', 'source', 'message'],
-    ...logs.map(log => [log.timestamp, log.type, log.source, log.message])
-  ];
-
-  return {
-    body: rows.map(row => row.map(csvEscape).join(',')).join('\n'),
-    contentType: 'text/csv; charset=utf-8',
-    extension: 'csv',
-  };
-}
-
-function clearExportedSystemLogs(logs: typeof systemLogHistory) {
-  const exportedIds = new Set(logs.map(log => log.id));
-  for (let index = systemLogHistory.length - 1; index >= 0; index -= 1) {
-    if (exportedIds.has(systemLogHistory[index].id)) {
-      systemLogHistory.splice(index, 1);
-    }
-  }
-}
-
 function clampChatMessages(messages: any[]) {
   return (Array.isArray(messages) ? messages : [])
     .filter(message => message && (message.role === 'user' || message.role === 'assistant'))
@@ -822,136 +575,6 @@ async function callGemini(settings: ProgramSettingsFile, messages: { role: strin
   return data.candidates?.[0]?.content?.parts?.map((part: any) => part.text || '').join('\n') || '';
 }
 
-async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
-  try {
-    return JSON.parse(await fs.readFile(filePath, 'utf-8'));
-  } catch {
-    return fallback;
-  }
-}
-
-async function readTextFile(filePath: string, fallback = '') {
-  try {
-    return await fs.readFile(filePath, 'utf-8');
-  } catch {
-    return fallback;
-  }
-}
-
-function stripMarkdownInline(value: string) {
-  return value.replace(/`([^`]+)`/g, '$1').trim();
-}
-
-function parsePatchSummary(markdown: string) {
-  const lines = markdown.split(/\r?\n/);
-  const summary = {
-    title: 'Applications Dashboard Patch Summary',
-    description: '',
-    currentVersion: '',
-    date: '',
-    mainArea: '',
-    sections: [] as { title: string; items: string[] }[],
-  };
-  let currentSection: { title: string; items: string[] } | null = null;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    if (line.startsWith('# ')) {
-      summary.title = line.replace(/^#\s+/, '').trim();
-      continue;
-    }
-
-    if (line.startsWith('## ')) {
-      const title = line.replace(/^##\s+/, '').trim();
-      currentSection = { title, items: [] };
-      if (title !== 'Current version') {
-        summary.sections.push(currentSection);
-      }
-      continue;
-    }
-
-    if (!currentSection) {
-      summary.description = summary.description || line;
-      continue;
-    }
-
-    const bulletMatch = line.match(/^[-*]\s+(.*)$/);
-    const numberedMatch = line.match(/^\d+\.\s+(.*)$/);
-    const item = bulletMatch?.[1] || numberedMatch?.[1];
-    if (!item) continue;
-
-    if (currentSection.title === 'Current version') {
-      const [label, ...valueParts] = item.split(':');
-      const value = stripMarkdownInline(valueParts.join(':'));
-      if (label === 'Version') summary.currentVersion = value;
-      else if (label === 'Date') summary.date = value;
-      else if (label === 'Main area') summary.mainArea = value;
-      continue;
-    }
-
-    currentSection.items.push(item.trim());
-  }
-
-  return summary;
-}
-
-async function readRecentGitCommitsFallback() {
-  try {
-    const headLog = await fs.readFile(path.join(PANEL_DIR, '.git', 'logs', 'HEAD'), 'utf-8');
-    return headLog
-      .split(/\r?\n/)
-      .filter(Boolean)
-      .reverse()
-      .slice(0, 12)
-      .map(line => {
-        const match = line.match(/^([0-9a-f]{40}) ([0-9a-f]{40}) .*? (\d{10}) [+-]\d{4}\t(?:commit(?: \(.*\))?: )?(.*)$/i);
-        if (!match) return undefined;
-
-        const [, , fullHash, timestamp, subject] = match;
-        return {
-          hash: fullHash.slice(0, 7),
-          date: new Date(Number(timestamp) * 1000).toISOString().slice(0, 10),
-          subject: subject || fullHash.slice(0, 7),
-          body: subject || '',
-        };
-      })
-      .filter((commit): commit is { hash: string; date: string; subject: string; body: string } => Boolean(commit));
-  } catch {
-    return [];
-  }
-}
-
-function getRecentGitCommits() {
-  return new Promise<{ hash: string; date: string; subject: string; body: string }[]>((resolve) => {
-    const resolveFallback = async () => {
-      resolve(await readRecentGitCommitsFallback());
-    };
-
-    try {
-      execFile('git', ['log', '--max-count=12', '--pretty=format:%h%x1f%ad%x1f%s%x1f%b%x1e', '--date=short'], { cwd: PANEL_DIR }, (error, stdout) => {
-        if (error) {
-          resolveFallback();
-          return;
-        }
-
-        resolve(stdout.split('\x1e').map(record => record.trim()).filter(Boolean).map(record => {
-          const [hash, date, subject, ...bodyParts] = record.split('\x1f');
-          return {
-            hash,
-            date,
-            subject,
-            body: bodyParts.join('\x1f').trim(),
-          };
-        }));
-      });
-    } catch {
-      resolveFallback();
-    }
-  });
-}
-
 // API Routes
 app.get('/api/settings', async (req, res) => {
   res.json(publicSettings(await getSettings()));
@@ -1012,16 +635,12 @@ app.post('/api/ai-chat', async (req, res) => {
 });
 
 app.get('/api/patch-notes', async (req, res) => {
-  const packageInfo = await readJsonFile(PACKAGE_FILE, { version: '0.0.0' });
-  const notes = await readJsonFile(PATCH_NOTES_FILE, []);
-  const patchSummary = parsePatchSummary(await readTextFile(PATCH_SUMMARY_FILE));
-  const commits = await getRecentGitCommits();
-  res.json({
-    version: (packageInfo as any).version || '0.0.0',
-    notes,
-    patchSummary,
-    commits,
-  });
+  res.json(await getPatchNotesPayload({
+    panelDir: PANEL_DIR,
+    packageFile: PACKAGE_FILE,
+    patchNotesFile: PATCH_NOTES_FILE,
+    patchSummaryFile: PATCH_SUMMARY_FILE,
+  }));
 });
 
 app.get('/api/apps', async (req, res) => {
@@ -1213,11 +832,11 @@ app.get('/api/system-logs', (req, res) => {
 
 app.get('/api/system-logs/export', (req, res) => {
   const format = String(req.query.format || 'csv').toLowerCase();
-  const logs = getSystemLogsForExport(req.query);
+  const logs = getSystemLogsForExport(systemLogHistory, req.query);
   const output = serializeSystemLogs(logs, format);
 
   if (req.query.clear === 'true') {
-    clearExportedSystemLogs(logs);
+    clearExportedSystemLogs(systemLogHistory, logs);
   }
 
   res.setHeader('Content-Type', output.contentType);

@@ -1,0 +1,60 @@
+import type { AppConfig } from './types';
+
+export function getDefaultApps(): AppConfig[] {
+  return [
+    {
+      id: 'smart40-database',
+      name: 'Banco de Dados Local',
+      command: 'mariadbd.exe',
+      args: '--datadir=..\\..\\..\\data --port=3307 --bind-address=127.0.0.1 --console',
+      port: '3307',
+      cwd: '../database/mariadb/mariadb-11.4.5-winx64/bin',
+      shell: false,
+      enabled: true,
+    },
+    {
+      id: 'smart40-backend',
+      name: 'Backend API',
+      command: 'node',
+      args: '-r dotenv/config -r ts-node/register -r tsconfig-paths/register src/index.ts',
+      port: '5448',
+      cwd: '../backend',
+      dependsOn: ['smart40-database'],
+      shell: false,
+      enabled: true,
+    },
+    {
+      id: 'smart40-erp',
+      name: 'ERP',
+      command: 'node',
+      args: 'node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5173',
+      port: '5173',
+      cwd: '../erp',
+      dependsOn: ['smart40-backend'],
+      shell: false,
+      enabled: true,
+    },
+    {
+      id: 'smart40-loja',
+      name: 'Loja Virtual',
+      command: 'node',
+      args: 'node_modules/vite/bin/vite.js --host 127.0.0.1 --port 8000',
+      port: '8000',
+      cwd: '../loja',
+      dependsOn: ['smart40-backend'],
+      shell: false,
+      enabled: true,
+    },
+    {
+      id: 'smart40-nodered',
+      name: 'Node-RED',
+      command: 'cmd.exe',
+      args: '/c iniciar-node-red.bat',
+      port: '1880',
+      cwd: '../NodeRed',
+      dependsOn: ['smart40-backend'],
+      shell: false,
+      enabled: true,
+    },
+  ];
+}

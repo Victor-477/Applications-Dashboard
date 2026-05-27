@@ -11,6 +11,7 @@ const iconPng = path.join(root, 'public', 'ind40-logo.png');
 const iconDir = path.join(root, 'build');
 const iconIco = path.join(iconDir, 'icon.ico');
 const builderCacheDir = path.join(root, '.cache', 'electron-builder');
+const packageInfo = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf-8'));
 
 function copyDir(source, target) {
   fs.mkdirSync(target, { recursive: true });
@@ -89,6 +90,12 @@ function applyExecutableIcon(exePath, iconPath) {
     '--set-version-string',
     'FileDescription',
     'Applications Dashboard',
+    '--set-version-string',
+    'ProductVersion',
+    packageInfo.version,
+    '--set-version-string',
+    'FileVersion',
+    packageInfo.version,
   ];
 
   const cachedRcedit = findCachedRcedit();

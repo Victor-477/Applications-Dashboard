@@ -4,9 +4,18 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.3.1
+- Version: 2.4.0
 - Date: 2026-05-27
-- Main area: application icon packaging and reliable patch note rendering.
+- Main area: project structure, executable icon reliability, and portable desktop runtime stability.
+
+## 2.4.0
+
+- Split backend defaults, instance import validation, settings normalization, system log export, and patch note parsing into dedicated server modules.
+- Split Settings dialogs and patch text translations into smaller frontend files.
+- Changed the Electron desktop runtime to use a portable user-data and cache directory beside the executable.
+- Kept the packaged executable icon aligned with the project cube icon.
+- Applied the app version metadata to the portable executable during packaging.
+- Updated application versioning to 2.4.0.
 
 ## 2.3.1
 
@@ -75,9 +84,12 @@ This file summarizes the main project changes so future GitHub commits can be pr
 - `package-lock.json`: locked root package version.
 - `patch-notes.json`: version history displayed on the Patch Files page.
 - `PROJECT_PATCH_SUMMARY.md`: English-first project patch summary rendered on the Patch Files page.
-- `server.ts`: endpoints, local execution, logs, import/export, patch summary parsing, and AI Chat.
+- `server.ts`: route orchestration, local execution, logs, import/export, and AI Chat.
+- `server/`: backend modules for defaults, import validation, settings normalization, log export, file reads, and patch note parsing.
 - `src/App.tsx`: main layout, sidebar navigation, and footer.
 - `src/components/SettingsView.tsx`: settings tabs, logs, and general tools.
+- `src/components/settings/`: smaller Settings dialog components.
+- `src/i18n/patchTextTranslations.ts`: translated patch note text entries.
 - `src/components/PatchFilesView.tsx`: version notes, patch summary, and commit display.
 - `src/i18n.ts`: interface translations.
 - `src/types.ts`: shared frontend/backend contracts.

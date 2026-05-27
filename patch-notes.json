@@ -1,5 +1,18 @@
 [
   {
+    "version": "2.4.0",
+    "date": "2026-05-27",
+    "title": "Project structure and executable icon hardening",
+    "changes": [
+      "Split backend defaults, instance import validation, settings normalization, system log export, and patch note parsing into dedicated server modules.",
+      "Split Settings dialogs and patch text translations into smaller frontend files.",
+      "Changed the Electron desktop runtime to use a portable user-data and cache directory beside the executable.",
+      "Kept the packaged executable icon aligned with the project cube icon.",
+      "Applied the app version metadata to the portable executable during packaging.",
+      "Updated application versioning to 2.4.0."
+    ]
+  },
+  {
     "version": "2.3.1",
     "date": "2026-05-27",
     "title": "Application icon and patch notes reliability",

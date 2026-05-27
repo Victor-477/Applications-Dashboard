@@ -1,4 +1,5 @@
 const { app, BrowserWindow, shell } = require('electron');
+const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
@@ -6,7 +7,8 @@ const PANEL_DIR = path.resolve(__dirname, '..');
 const RUNTIME_DIR = process.defaultApp ? PANEL_DIR : path.dirname(process.execPath);
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PANEL_PORT || 3764);
-const USER_DATA_DIR = path.join(process.env.LOCALAPPDATA || RUNTIME_DIR, 'AppDashboard');
+const USER_DATA_DIR = path.join(RUNTIME_DIR, 'user-data');
+const CACHE_DIR = path.join(USER_DATA_DIR, 'Cache');
 
 let mainWindow;
 
@@ -15,8 +17,12 @@ process.env.PANEL_HOST = HOST;
 process.env.PANEL_PORT = String(PORT);
 process.env.SMART40_PANEL_DIR = PANEL_DIR;
 
+fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+fs.mkdirSync(CACHE_DIR, { recursive: true });
+
+app.commandLine.appendSwitch('user-data-dir', USER_DATA_DIR);
 app.setPath('userData', USER_DATA_DIR);
-app.setPath('cache', path.join(USER_DATA_DIR, 'Cache'));
+app.setPath('cache', CACHE_DIR);
 app.commandLine.appendSwitch('no-sandbox');
 app.commandLine.appendSwitch('disable-features', 'NetworkService,NetworkServiceInProcess,NetworkServiceSandbox');
 app.commandLine.appendSwitch('disable-gpu');
@@ -24,6 +30,10 @@ app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.commandLine.appendSwitch('disable-extensions');
 app.commandLine.appendSwitch('disable-http-cache');
 app.commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId('local.applicationsdashboard.desktopcontrolpanel');
+}
 
 function startInternalServer() {
   require(path.join(PANEL_DIR, 'dist', 'server.cjs'));
@@ -73,10 +83,6 @@ async function createWindow() {
       sandbox: false,
     },
   });
-
-  if (process.platform === 'win32') {
-    app.setAppUserModelId('local.applicationsdashboard.desktopcontrolpanel');
-  }
 
   mainWindow.setMenuBarVisibility(false);
   mainWindow.loadURL(`http://${HOST}:${PORT}`);
