@@ -20,6 +20,30 @@ function getInitialLanguage(): Language {
   return isLanguage(storedLanguage) ? storedLanguage : 'en';
 }
 
+function getAccentContrastColor(color: string) {
+  const hex = color.replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return '#ffffff';
+
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+
+  return luminance > 165 ? '#111827' : '#ffffff';
+}
+
+function getReadableAccentColor(color: string) {
+  const hex = color.replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return color;
+
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  const luminance = (red * 299 + green * 587 + blue * 114) / 1000;
+
+  return luminance > 210 ? '#111827' : color;
+}
+
 const defaultProgramSettings: ProgramSettings = {
   homepageUrl: 'http://localhost',
   aiProvider: 'openai',
@@ -55,8 +79,10 @@ export default function App() {
   ].join(' ');
   const themeVars = {
     '--app-accent': programSettings.accentColor,
+    '--app-accent-readable': getReadableAccentColor(programSettings.accentColor),
     '--app-accent-soft': `${programSettings.accentColor}18`,
     '--app-accent-ring': `${programSettings.accentColor}40`,
+    '--app-accent-contrast': getAccentContrastColor(programSettings.accentColor),
   } as CSSProperties;
 
   const statusSummary = apps.reduce(
@@ -476,7 +502,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.3.0</span>
+        <span>Control Panel - Applications Dashboard v2.3.1 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

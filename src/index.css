@@ -6,14 +6,16 @@
 
 .theme-shell {
   --app-accent: #009dea;
+  --app-accent-readable: #009dea;
   --app-accent-soft: #009dea18;
   --app-accent-ring: #009dea40;
+  --app-accent-contrast: #ffffff;
 }
 
 .theme-shell .text-blue-500,
 .theme-shell .text-blue-600,
 .theme-shell .text-blue-700 {
-  color: var(--app-accent) !important;
+  color: var(--app-accent-readable) !important;
 }
 
 .theme-shell .bg-blue-50 {
@@ -24,6 +26,7 @@
 .theme-shell .bg-blue-600,
 .theme-shell .bg-blue-700 {
   background-color: var(--app-accent) !important;
+  color: var(--app-accent-contrast) !important;
 }
 
 .theme-shell .border-blue-300,
@@ -42,11 +45,17 @@
 
 .theme-shell .hover\:text-blue-600:hover,
 .theme-shell .hover\:text-blue-700:hover {
-  color: var(--app-accent) !important;
+  color: var(--app-accent-readable) !important;
 }
 
 .theme-shell .hover\:bg-blue-50:hover {
   background-color: var(--app-accent-soft) !important;
+}
+
+.theme-shell .hover\:bg-blue-600:hover,
+.theme-shell .hover\:bg-blue-700:hover {
+  background-color: var(--app-accent) !important;
+  color: var(--app-accent-contrast) !important;
 }
 
 .theme-dark {

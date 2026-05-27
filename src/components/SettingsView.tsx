@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Moon, Palette, Pencil, RefreshCw, Settings, Sun, Trash2, Upload, X } from 'lucide-react';
+import { Download, FileJson, Moon, Palette, Pencil, RefreshCw, Settings, Sun, Trash2, Upload, X } from 'lucide-react';
 import type { AppState, AppConfig, ProgramSettings, SettingsTab, SystemLogLine } from '../types';
 import type { Translation } from '../i18n';
 
@@ -55,9 +55,14 @@ export default function SettingsView({
   const [exportLimit, setExportLimit] = useState(100);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('csv');
   const [clearAfterDownload, setClearAfterDownload] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importJsonText, setImportJsonText] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
   const [replaceInstances, setReplaceInstances] = useState(false);
   const [instanceImportMessage, setInstanceImportMessage] = useState('');
   const [instanceImportError, setInstanceImportError] = useState('');
+  const [showCustomColorInput, setShowCustomColorInput] = useState(false);
+  const [customColorDraft, setCustomColorDraft] = useState(currentProgramSettings.accentColor.replace('#', ''));
 
   const summary = useMemo(() => {
     return apps.reduce(
@@ -113,6 +118,7 @@ export default function SettingsView({
       themeMode: currentProgramSettings.themeMode,
       accentColor: currentProgramSettings.accentColor,
     }));
+    setCustomColorDraft(currentProgramSettings.accentColor.replace('#', ''));
   }, [currentProgramSettings.themeMode, currentProgramSettings.accentColor]);
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -122,7 +128,15 @@ export default function SettingsView({
     { id: 'style', label: t.settings.style },
   ];
 
-  const accentSwatches = ['#009dea', '#2563eb', '#16a34a', '#dc2626', '#9333ea', '#f97316'];
+  const accentSwatches = [
+    { color: '#009dea', label: t.settings.defaultBlue },
+    { color: '#2563eb', label: t.settings.oceanBlue },
+    { color: '#16a34a', label: t.settings.operationGreen },
+    { color: '#dc2626', label: t.settings.alertRed },
+    { color: '#9333ea', label: t.settings.signalPurple },
+    { color: '#f97316', label: t.settings.energyOrange },
+    { color: '#ffffff', label: t.settings.cleanWhite },
+  ];
 
   const handleToggle = async (app: AppState) => {
     await onToggleEnabled(app.config.id, app.config.enabled === false);
@@ -184,17 +198,16 @@ export default function SettingsView({
     URL.revokeObjectURL(url);
   };
 
-  const handleImportInstances = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
+  const importInstancesFromJsonText = async (text: string) => {
     setInstanceImportMessage('');
     setInstanceImportError('');
+    setIsImporting(true);
 
     try {
-      const payload = JSON.parse(await file.text());
+      const payload = JSON.parse(text);
       const appsToImport = Array.isArray(payload) ? payload : payload.apps;
+      if (!Array.isArray(appsToImport)) throw new Error(t.settings.importJsonInvalid);
+
       const response = await fetch('/api/apps/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -204,10 +217,32 @@ export default function SettingsView({
       if (!response.ok) throw new Error(result.error || t.settings.instanceImportFailed);
 
       setInstanceImportMessage(`${t.settings.instanceImportSuccess}: ${result.imported}`);
+      setImportJsonText('');
+      setIsImportOpen(false);
       await onAppsChanged();
       await loadSettings();
     } catch (error) {
       setInstanceImportError(`${t.settings.instanceImportFailed}: ${(error as Error).message}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleImportInstances = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    const text = await file.text();
+    setImportJsonText(text);
+    await importInstancesFromJsonText(text);
+  };
+
+  const handleCustomColorChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9a-f]/gi, '').slice(0, 6);
+    setCustomColorDraft(sanitized);
+    if (sanitized.length === 6) {
+      setSettingsForm({ ...settingsForm, accentColor: `#${sanitized}` });
     }
   };
 
@@ -450,11 +485,14 @@ export default function SettingsView({
                 </div>
                 <div className="space-y-5 px-5 py-5">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex cursor-pointer items-center justify-center gap-2 border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
+                    <button
+                      type="button"
+                      onClick={() => setIsImportOpen(true)}
+                      className="flex items-center justify-center gap-2 border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                    >
                       <Upload className="h-4 w-4" />
                       {t.settings.importInstances}
-                      <input type="file" accept="application/json,.json" onChange={handleImportInstances} className="sr-only" />
-                    </label>
+                    </button>
                     <button
                       type="button"
                       onClick={handleBackupInstances}
@@ -519,7 +557,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.3.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.3.1</p>
                   </div>
                 </div>
               </section>
@@ -576,41 +614,55 @@ export default function SettingsView({
 
                   <div>
                     <span className="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.accentColor}</span>
-                    <div className="grid gap-3 sm:grid-cols-[96px_minmax(0,1fr)]">
-                      <label className="flex h-24 cursor-pointer items-center justify-center border border-gray-300 bg-white">
-                        <input
-                          type="color"
-                          value={settingsForm.accentColor}
-                          onChange={event => setSettingsForm({ ...settingsForm, accentColor: event.target.value })}
-                          className="h-14 w-14 cursor-pointer border-0 bg-transparent p-0"
-                          title={t.settings.customColor}
-                        />
-                      </label>
-                      <div className="space-y-3">
-                        <input
-                          value={settingsForm.accentColor}
-                          onChange={event => setSettingsForm({ ...settingsForm, accentColor: event.target.value })}
-                          placeholder="#009dea"
-                          maxLength={7}
-                          className="w-full border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-blue-500"
-                        />
-                        <div className="flex flex-wrap gap-2">
-                          {accentSwatches.map(color => (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">{t.settings.predefinedColors}</p>
+                        <div className="grid grid-cols-[repeat(auto-fit,minmax(96px,1fr))] gap-3">
+                          {accentSwatches.map(({ color, label }) => (
                             <button
                               key={color}
                               type="button"
-                              onClick={() => setSettingsForm({ ...settingsForm, accentColor: color })}
-                              className={`h-9 w-9 border transition-transform hover:scale-105 ${
+                              onClick={() => {
+                                setShowCustomColorInput(false);
+                                setCustomColorDraft(color.replace('#', ''));
+                                setSettingsForm({ ...settingsForm, accentColor: color });
+                              }}
+                              className={`flex min-h-[72px] flex-col items-start justify-between border bg-white p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 ${
                                 settingsForm.accentColor.toLowerCase() === color.toLowerCase()
-                                  ? 'border-gray-900 ring-2 ring-blue-500/40'
+                                  ? 'border-blue-500 ring-2 ring-blue-500/40'
                                   : 'border-gray-200'
                               }`}
-                              style={{ backgroundColor: color }}
-                              title={color}
-                            />
+                            >
+                              <span
+                                className="h-7 w-7 rounded border border-gray-300"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="text-xs font-semibold text-gray-700">{label}</span>
+                            </button>
                           ))}
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomColorInput(true)}
+                            className={`flex min-h-[72px] flex-col items-start justify-between border bg-white p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50 ${
+                              showCustomColorInput ? 'border-blue-500 ring-2 ring-blue-500/40' : 'border-gray-200'
+                            }`}
+                          >
+                            <span className="flex h-7 w-7 items-center justify-center rounded border border-gray-300 bg-gray-200 text-sm font-black text-gray-600">?</span>
+                            <span className="text-xs font-semibold text-gray-700">{t.settings.customColor}</span>
+                          </button>
                         </div>
                       </div>
+
+                      {showCustomColorInput && (
+                        <input
+                          value={customColorDraft}
+                          onChange={event => handleCustomColorChange(event.target.value)}
+                          placeholder="009DEA"
+                          maxLength={6}
+                          className="w-full border border-gray-300 px-3 py-2 font-mono text-sm uppercase tracking-wide outline-none focus:border-blue-500"
+                          aria-label={t.settings.customColorCode}
+                        />
+                      )}
                     </div>
                     <p className="mt-3 text-xs font-medium text-gray-500">{t.settings.accentColorDescription}</p>
                   </div>
@@ -752,6 +804,79 @@ export default function SettingsView({
                 className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
               >
                 {t.settings.confirmDownload}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isImportOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 p-4">
+          <div className="w-full max-w-2xl bg-white shadow-2xl ring-1 ring-gray-200">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{t.settings.importTitle}</h3>
+                <p className="mt-1 text-sm text-gray-500">{t.settings.importDescription}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                title={t.form.cancel}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5 px-5 py-5">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex cursor-pointer items-center justify-center gap-2 border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">
+                  <FileJson className="h-4 w-4" />
+                  {t.settings.selectJsonFile}
+                  <input type="file" accept=".json,application/json" onChange={handleImportInstances} className="sr-only" />
+                </label>
+                <label className="flex items-center justify-between gap-4 border border-gray-200 bg-white px-3 py-3">
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-800">{t.settings.replaceInstances}</span>
+                    <span className="mt-1 block text-xs text-gray-500">{t.settings.replaceInstancesHelp}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={replaceInstances}
+                    onChange={event => setReplaceInstances(event.target.checked)}
+                  />
+                </label>
+              </div>
+
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.pasteJson}</span>
+                <textarea
+                  value={importJsonText}
+                  onChange={event => setImportJsonText(event.target.value)}
+                  placeholder='{"apps":[...]}'
+                  className="min-h-[220px] w-full resize-y border border-gray-300 px-3 py-2 font-mono text-xs leading-5 text-gray-800 outline-none focus:border-blue-500"
+                />
+              </label>
+
+              {instanceImportError && <p className="text-sm font-semibold text-red-600">{instanceImportError}</p>}
+            </div>
+
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-5 py-4">
+              <button
+                type="button"
+                onClick={() => setIsImportOpen(false)}
+                className="rounded bg-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-300"
+              >
+                {t.form.cancel}
+              </button>
+              <button
+                type="button"
+                disabled={isImporting || !importJsonText.trim()}
+                onClick={() => importInstancesFromJsonText(importJsonText)}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400"
+              >
+                {isImporting ? t.settings.importingInstances : t.settings.confirmImport}
               </button>
             </div>
           </div>

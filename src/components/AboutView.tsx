@@ -1,5 +1,5 @@
 import { ExternalLink, Github, Info } from 'lucide-react';
-import { Translation } from '../i18n';
+import type { Translation } from '../i18n';
 
 interface AboutViewProps {
   t: Translation;
@@ -37,6 +37,7 @@ export default function AboutView({ t }: AboutViewProps) {
               <p>{t.about.paragraphOne}</p>
               <p>{t.about.paragraphTwo}</p>
               <p>{t.about.paragraphThree}</p>
+              <p className="text-sm font-semibold text-gray-900">{t.about.createdBy}</p>
             </div>
 
             <div className="grid gap-4 border-y border-gray-200 py-5 sm:grid-cols-3">

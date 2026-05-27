@@ -36,6 +36,17 @@ export default function PatchFilesView({ t, language }: PatchFilesViewProps) {
 
   const selectedCommit = commits.find(commit => commit.hash === selectedCommitHash) || commits[0];
   const tr = (value: string) => translatePatchText(language, value);
+  const summaryVersionNotes = patchSummary?.sections
+    .filter(section => /^\d+\.\d+\.\d+$/.test(section.title))
+    .map(section => ({
+      version: section.title,
+      date: section.title === patchSummary.currentVersion ? patchSummary.date || '' : '',
+      title: section.title === patchSummary.currentVersion && patchSummary.mainArea
+        ? patchSummary.mainArea
+        : section.title,
+      changes: section.items,
+    })) || [];
+  const visibleNotes = notes.length > 0 ? notes : summaryVersionNotes;
   const translatedSummaryTitle = (title: string) => {
     const labels: Record<string, string> = {
       'Initial baseline': t.patches.initialBaseline,
@@ -88,27 +99,33 @@ export default function PatchFilesView({ t, language }: PatchFilesViewProps) {
 
           <div className="min-h-0 flex-1 overflow-auto pr-1">
             {activePanel === 'notes' ? (
-              <div className="space-y-4">
-                {notes.map(note => (
-                  <article key={note.version} className="border border-gray-200 p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
-                        <h4 className="text-lg font-bold text-gray-900">{note.version}</h4>
-                        <p className="text-sm font-medium text-gray-500">{tr(note.title)}</p>
+              visibleNotes.length > 0 ? (
+                <div className="space-y-4">
+                  {visibleNotes.map(note => (
+                    <article key={note.version} className="border border-gray-200 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-lg font-bold text-gray-900">{note.version}</h4>
+                          <p className="text-sm font-medium text-gray-500">{tr(note.title)}</p>
+                        </div>
+                        <span className="text-xs font-bold text-gray-400">{note.date || '-'}</span>
                       </div>
-                      <span className="text-xs font-bold text-gray-400">{note.date}</span>
-                    </div>
-                    <ul className="space-y-2 text-sm text-gray-700">
-                      {note.changes.map(change => (
-                        <li key={change} className="flex gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-                          <span>{tr(change)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </article>
-                ))}
-              </div>
+                      <ul className="space-y-2 text-sm text-gray-700">
+                        {note.changes.map(change => (
+                          <li key={change} className="flex gap-2">
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                            <span>{tr(change)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-[220px] items-center justify-center text-sm text-gray-500">
+                  {t.patches.noSummary}
+                </div>
+              )
             ) : patchSummary ? (
               <div className="border border-gray-200 bg-white p-4">
                 <div className="mb-4">

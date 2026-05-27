@@ -74,6 +74,10 @@ async function createWindow() {
     },
   });
 
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('local.applicationsdashboard.desktopcontrolpanel');
+  }
+
   mainWindow.setMenuBarVisibility(false);
   mainWindow.loadURL(`http://${HOST}:${PORT}`);
 

@@ -1,5 +1,16 @@
 [
   {
+    "version": "2.3.1",
+    "date": "2026-05-27",
+    "title": "Application icon and patch notes reliability",
+    "changes": [
+      "Applied the project cube image as the Electron window and packaged executable icon.",
+      "Updated the portable packaging script to copy patch notes and project patch summary files.",
+      "Added a Patch Files fallback that renders version notes from PROJECT_PATCH_SUMMARY.md when patch-notes.json is unavailable.",
+      "Updated application versioning to 2.3.1."
+    ]
+  },
+  {
     "version": "2.3.0",
     "date": "2026-05-27",
     "title": "System styling and import stability",

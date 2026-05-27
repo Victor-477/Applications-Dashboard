@@ -4,9 +4,16 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.3.0
+- Version: 2.3.1
 - Date: 2026-05-27
-- Main area: system styling, theme persistence, custom accent colors, and import flow stability.
+- Main area: application icon packaging and reliable patch note rendering.
+
+## 2.3.1
+
+- Applied the project cube image as the Electron window and packaged executable icon.
+- Updated the portable packaging script to copy patch notes and project patch summary files.
+- Added a Patch Files fallback that renders version notes from PROJECT_PATCH_SUMMARY.md when patch-notes.json is unavailable.
+- Updated application versioning to 2.3.1.
 
 ## 2.3.0
 
