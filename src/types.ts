@@ -16,9 +16,11 @@ export interface AppConfig {
   advancedShell?: boolean;
 }
 
-export type AppView = 'services' | 'settings' | 'ai' | 'patches';
+export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about';
 
-export type SettingsTab = 'apps' | 'logs' | 'general';
+export type SettingsTab = 'apps' | 'logs' | 'general' | 'style';
+
+export type ThemeMode = 'light' | 'dark';
 
 export interface ProgramSettings {
   homepageUrl: string;
@@ -26,6 +28,8 @@ export interface ProgramSettings {
   aiModel: string;
   aiBaseUrl: string;
   aiApiKeySet: boolean;
+  themeMode: ThemeMode;
+  accentColor: string;
 }
 
 export interface ChatMessage {
@@ -38,6 +42,20 @@ export interface PatchNote {
   date: string;
   title: string;
   changes: string[];
+}
+
+export interface PatchSummarySection {
+  title: string;
+  items: string[];
+}
+
+export interface PatchSummary {
+  title: string;
+  description: string;
+  currentVersion?: string;
+  date?: string;
+  mainArea?: string;
+  sections: PatchSummarySection[];
 }
 
 export interface GitCommit {

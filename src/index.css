@@ -4,6 +4,102 @@
   color-scheme: light;
 }
 
+.theme-shell {
+  --app-accent: #009dea;
+  --app-accent-soft: #009dea18;
+  --app-accent-ring: #009dea40;
+}
+
+.theme-shell .text-blue-500,
+.theme-shell .text-blue-600,
+.theme-shell .text-blue-700 {
+  color: var(--app-accent) !important;
+}
+
+.theme-shell .bg-blue-50 {
+  background-color: var(--app-accent-soft) !important;
+}
+
+.theme-shell .bg-blue-500,
+.theme-shell .bg-blue-600,
+.theme-shell .bg-blue-700 {
+  background-color: var(--app-accent) !important;
+}
+
+.theme-shell .border-blue-300,
+.theme-shell .border-blue-500 {
+  border-color: var(--app-accent) !important;
+}
+
+.theme-shell .focus\:border-blue-500:focus {
+  border-color: var(--app-accent) !important;
+}
+
+.theme-shell .focus\:ring-blue-500\/40:focus,
+.theme-shell .focus\:ring-blue-500\/50:focus {
+  --tw-ring-color: var(--app-accent-ring) !important;
+}
+
+.theme-shell .hover\:text-blue-600:hover,
+.theme-shell .hover\:text-blue-700:hover {
+  color: var(--app-accent) !important;
+}
+
+.theme-shell .hover\:bg-blue-50:hover {
+  background-color: var(--app-accent-soft) !important;
+}
+
+.theme-dark {
+  color-scheme: dark;
+  background-color: #0f172a !important;
+}
+
+.theme-dark .bg-\[\#edf0f2\],
+.theme-dark .bg-gray-50 {
+  background-color: #111827 !important;
+}
+
+.theme-dark .bg-white,
+.theme-dark .bg-white\/70 {
+  background-color: #172033 !important;
+}
+
+.theme-dark .bg-gray-100 {
+  background-color: #1f2937 !important;
+}
+
+.theme-dark .border-gray-100,
+.theme-dark .border-gray-200,
+.theme-dark .border-gray-300,
+.theme-dark .border-\[\#cfd8df\],
+.theme-dark .ring-gray-200 {
+  border-color: #334155 !important;
+  --tw-ring-color: #334155 !important;
+}
+
+.theme-dark .text-gray-950,
+.theme-dark .text-gray-900,
+.theme-dark .text-gray-800 {
+  color: #f8fafc !important;
+}
+
+.theme-dark .text-gray-700,
+.theme-dark .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+.theme-dark .text-gray-500,
+.theme-dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+.theme-dark input,
+.theme-dark select,
+.theme-dark textarea {
+  background-color: #0f172a;
+  color: #f8fafc;
+}
+
 html,
 body,
 #root {

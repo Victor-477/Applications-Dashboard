@@ -1,66 +1,85 @@
 # Applications Dashboard Patch Summary
 
-Este arquivo resume as principais alteracoes do projeto para facilitar commits futuros no GitHub.
+This file summarizes the main project changes so future GitHub commits can be prepared with less friction.
 
-## Versao atual
+## Current version
 
-- Versao: 2.2.0
-- Data: 2026-05-26
-- Area principal: configuracoes gerais, importacao/exportacao de instancias e documentacao de patches.
+- Version: 2.3.0
+- Date: 2026-05-27
+- Main area: system styling, theme persistence, custom accent colors, and import flow stability.
+
+## 2.3.0
+
+- Added a Style tab in Settings for light and dark themes.
+- Added custom accent color selection with free color input and preset swatches.
+- Persisted appearance settings through the backend settings file.
+- Applied the selected accent color to buttons, active navigation states, cards, and form focus states.
+- Reset stale dashboard selection and side panels after importing instances.
+- Updated application versioning to 2.3.0.
+
+## 2.2.1
+
+- Connected PROJECT_PATCH_SUMMARY.md to the Patch Files page.
+- Added an About system page with translated content and GitHub links.
+- Added backend parsing for the project patch summary markdown file.
+- Added translated interface labels for the patch summary sections.
+- Reworked the patch summary file so English is the primary language.
+- Updated application versioning to 2.2.1.
 
 ## 2.2.0
 
-- Adicionada categoria de configuracoes das instancias em Configuracoes > Geral.
-- Adicionado backup das instancias cadastradas em JSON.
-- Adicionada importacao de instancias via JSON para configurar varias instancias de uma unica vez.
-- Adicionada opcao para substituir as instancias atuais durante a importacao.
-- Adicionada validacao no backend para payloads importados.
-- Adicionados logs do sistema para exportacao, sucesso e falha de importacao.
-- Atualizado versionamento do aplicativo para 2.2.0.
+- Added an instance settings category under Settings > General.
+- Added JSON backup export for configured instances.
+- Added JSON import support to configure multiple instances at once.
+- Added an option to replace the current instance list during import.
+- Added backend validation for imported payloads.
+- Added system logs for backup export, import success, and import failure.
+- Updated application versioning to 2.2.0.
 
 ## 2.1.0
 
-- Reorganizada a aba Geral em categorias claras.
-- Ajustado cabecalho fixo em Configuracoes e Patch Files.
-- A rolagem passou a acontecer somente no conteudo das abas.
-- Commits da pagina Patch Files passaram a ser clicaveis.
-- Detalhes de commit passaram a exibir hash, data, titulo e descricao.
-- Adicionado fallback para leitura de commits quando o executavel git nao puder ser chamado.
+- Reorganized the General settings tab into clear categories.
+- Made the Settings and Patch Files headers fixed.
+- Restricted scrolling to the tab/page content areas.
+- Made Patch Files commit entries clickable.
+- Added commit details with hash, date, subject, and description.
+- Added a fallback for commit history when the git executable cannot be called.
 
 ## 0.1.0
 
-- Adicionada navegacao lateral com Home, HomePage, AI Chat, Patch Files e Settings.
-- Adicionada configuracao de URL da HomePage.
-- Adicionada pagina AI Chat com configuracao local de provider, modelo e API key.
-- Adicionada pagina Patch Files com notas de versao e commits recentes.
-- Adicionados filtros e formatos de exportacao dos logs do sistema.
-- Removida exclusao de instancias da tela inicial, mantendo a acao somente em Configuracoes.
+- Added sidebar navigation with Home, HomePage, AI Chat, Patch Files, and Settings.
+- Added configurable HomePage URL.
+- Added AI Chat with local provider, model, and API key configuration.
+- Added Patch Files with version notes and recent commits.
+- Added system log filters and export formats.
+- Removed instance deletion from the main screen and kept it only in Settings.
 
-## Base inicial
+## Initial baseline
 
-- Criado layout em cards para servicos.
-- Adicionado terminal lateral para a instancia selecionada.
-- Adicionado painel lateral de criacao e edicao de instancias.
-- Adicionados controles de habilitar e desabilitar instancias.
-- Adicionados logs locais do sistema.
+- Created the service card layout.
+- Added the side terminal for the selected instance.
+- Added the side panel for instance creation and editing.
+- Added enable and disable controls for instances.
+- Added local system logs.
 
-## Arquivos importantes para commits
+## Important files for commits
 
-- `package.json`: versao do aplicativo e scripts.
-- `package-lock.json`: versao travada do pacote raiz.
-- `patch-notes.json`: historico exibido na pagina Patch Files.
-- `server.ts`: endpoints, execucao local, logs, importacao/exportacao e AI Chat.
-- `src/App.tsx`: layout principal, navegacao lateral e rodape.
-- `src/components/SettingsView.tsx`: abas de configuracoes, logs e ferramentas gerais.
-- `src/components/PatchFilesView.tsx`: exibicao de notas e commits.
-- `src/i18n.ts`: traducoes de interface.
-- `src/types.ts`: contratos compartilhados entre frontend e backend.
+- `package.json`: application version and scripts.
+- `package-lock.json`: locked root package version.
+- `patch-notes.json`: version history displayed on the Patch Files page.
+- `PROJECT_PATCH_SUMMARY.md`: English-first project patch summary rendered on the Patch Files page.
+- `server.ts`: endpoints, local execution, logs, import/export, patch summary parsing, and AI Chat.
+- `src/App.tsx`: main layout, sidebar navigation, and footer.
+- `src/components/SettingsView.tsx`: settings tabs, logs, and general tools.
+- `src/components/PatchFilesView.tsx`: version notes, patch summary, and commit display.
+- `src/i18n.ts`: interface translations.
+- `src/types.ts`: shared frontend/backend contracts.
 
-## Checklist antes de commitar
+## Checklist before committing
 
-1. Atualizar `package.json` e `package-lock.json` com a nova versao.
-2. Adicionar uma entrada nova em `patch-notes.json`.
-3. Atualizar este arquivo com o resumo da nova versao.
-4. Rodar `npm run lint`.
-5. Rodar `npm run build`.
-6. Validar `http://127.0.0.1:3000/` quando a alteracao impactar interface ou API.
+1. Update `package.json` and `package-lock.json` with the new version.
+2. Add a new entry to `patch-notes.json`.
+3. Update this file with the new release summary.
+4. Run `npm run lint`.
+5. Run `npm run build`.
+6. Validate `http://127.0.0.1:3000/` when the change affects the UI or API.

@@ -16,6 +16,7 @@ const PROJECT_ROOT = findProjectRoot(PANEL_DIR);
 const APPS_FILE = path.join(PANEL_DIR, 'apps.json');
 const SETTINGS_FILE = path.join(PANEL_DIR, 'settings.json');
 const PATCH_NOTES_FILE = path.join(PANEL_DIR, 'patch-notes.json');
+const PATCH_SUMMARY_FILE = path.join(PANEL_DIR, 'PROJECT_PATCH_SUMMARY.md');
 const PACKAGE_FILE = path.join(PANEL_DIR, 'package.json');
 interface AppConfig {
   id: string;
@@ -41,6 +42,8 @@ interface ProgramSettingsFile {
   aiModel: string;
   aiBaseUrl: string;
   aiApiKey: string;
+  themeMode: 'light' | 'dark';
+  accentColor: string;
 }
 
 const runningProcesses = new Map<string, ChildProcess[]>();
@@ -137,6 +140,8 @@ function getDefaultSettings(): ProgramSettingsFile {
     aiModel: 'gpt-4o-mini',
     aiBaseUrl: '',
     aiApiKey: '',
+    themeMode: 'light',
+    accentColor: '#009dea',
   };
 }
 
@@ -158,6 +163,15 @@ async function saveSettings(settings: ProgramSettingsFile) {
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8');
 }
 
+function normalizeThemeMode(value: unknown): 'light' | 'dark' {
+  return value === 'dark' ? 'dark' : 'light';
+}
+
+function normalizeAccentColor(value: unknown, fallback = '#009dea') {
+  const color = String(value || fallback).trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+}
+
 function publicSettings(settings: ProgramSettingsFile) {
   return {
     homepageUrl: settings.homepageUrl,
@@ -165,6 +179,8 @@ function publicSettings(settings: ProgramSettingsFile) {
     aiModel: settings.aiModel,
     aiBaseUrl: settings.aiBaseUrl,
     aiApiKeySet: Boolean(settings.aiApiKey),
+    themeMode: normalizeThemeMode(settings.themeMode),
+    accentColor: normalizeAccentColor(settings.accentColor),
   };
 }
 
@@ -814,6 +830,73 @@ async function readJsonFile<T>(filePath: string, fallback: T): Promise<T> {
   }
 }
 
+async function readTextFile(filePath: string, fallback = '') {
+  try {
+    return await fs.readFile(filePath, 'utf-8');
+  } catch {
+    return fallback;
+  }
+}
+
+function stripMarkdownInline(value: string) {
+  return value.replace(/`([^`]+)`/g, '$1').trim();
+}
+
+function parsePatchSummary(markdown: string) {
+  const lines = markdown.split(/\r?\n/);
+  const summary = {
+    title: 'Applications Dashboard Patch Summary',
+    description: '',
+    currentVersion: '',
+    date: '',
+    mainArea: '',
+    sections: [] as { title: string; items: string[] }[],
+  };
+  let currentSection: { title: string; items: string[] } | null = null;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    if (line.startsWith('# ')) {
+      summary.title = line.replace(/^#\s+/, '').trim();
+      continue;
+    }
+
+    if (line.startsWith('## ')) {
+      const title = line.replace(/^##\s+/, '').trim();
+      currentSection = { title, items: [] };
+      if (title !== 'Current version') {
+        summary.sections.push(currentSection);
+      }
+      continue;
+    }
+
+    if (!currentSection) {
+      summary.description = summary.description || line;
+      continue;
+    }
+
+    const bulletMatch = line.match(/^[-*]\s+(.*)$/);
+    const numberedMatch = line.match(/^\d+\.\s+(.*)$/);
+    const item = bulletMatch?.[1] || numberedMatch?.[1];
+    if (!item) continue;
+
+    if (currentSection.title === 'Current version') {
+      const [label, ...valueParts] = item.split(':');
+      const value = stripMarkdownInline(valueParts.join(':'));
+      if (label === 'Version') summary.currentVersion = value;
+      else if (label === 'Date') summary.date = value;
+      else if (label === 'Main area') summary.mainArea = value;
+      continue;
+    }
+
+    currentSection.items.push(item.trim());
+  }
+
+  return summary;
+}
+
 async function readRecentGitCommitsFallback() {
   try {
     const headLog = await fs.readFile(path.join(PANEL_DIR, '.git', 'logs', 'HEAD'), 'utf-8');
@@ -886,6 +969,8 @@ app.put('/api/settings', async (req, res) => {
     aiApiKey: typeof req.body.aiApiKey === 'string' && req.body.aiApiKey.trim()
       ? req.body.aiApiKey.trim()
       : current.aiApiKey,
+    themeMode: normalizeThemeMode(req.body.themeMode || current.themeMode),
+    accentColor: normalizeAccentColor(req.body.accentColor, current.accentColor),
   };
 
   await saveSettings(next);
@@ -929,10 +1014,12 @@ app.post('/api/ai-chat', async (req, res) => {
 app.get('/api/patch-notes', async (req, res) => {
   const packageInfo = await readJsonFile(PACKAGE_FILE, { version: '0.0.0' });
   const notes = await readJsonFile(PATCH_NOTES_FILE, []);
+  const patchSummary = parsePatchSummary(await readTextFile(PATCH_SUMMARY_FILE));
   const commits = await getRecentGitCommits();
   res.json({
     version: (packageInfo as any).version || '0.0.0',
     notes,
+    patchSummary,
     commits,
   });
 });

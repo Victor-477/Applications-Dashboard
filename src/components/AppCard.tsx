@@ -1,6 +1,6 @@
 import { Globe2, Play, RotateCw, Settings, Square } from 'lucide-react';
-import { AppState } from '../types';
-import { Translation } from '../i18n';
+import type { AppState } from '../types';
+import type { Translation } from '../i18n';
 
 interface AppCardProps {
   app: AppState;
@@ -56,7 +56,7 @@ export default function AppCard({ app, hasError, isSelected, onSelect, onStart, 
             disabled={!canOpenApp}
             className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
               canOpenApp
-                ? 'text-[#009dea] hover:bg-blue-50 hover:text-blue-600'
+                ? 'text-blue-600 hover:bg-blue-50 hover:text-blue-600'
                 : 'cursor-not-allowed text-[#a8bac6]'
             }`}
             title={displayPort ? `${t.portTitle} ${displayPort}` : t.portTitle}
@@ -71,7 +71,7 @@ export default function AppCard({ app, hasError, isSelected, onSelect, onStart, 
                 event.stopPropagation();
                 onStop();
               }}
-              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#a9bdca] text-[#009dea] transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full border border-[#a9bdca] text-blue-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
               title={t.stop}
             >
               <Square className="h-3 w-3 fill-current" />
@@ -83,7 +83,7 @@ export default function AppCard({ app, hasError, isSelected, onSelect, onStart, 
                 event.stopPropagation();
                 onStart();
               }}
-              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-[#009dea] transition-colors hover:bg-blue-50 hover:text-blue-700"
+              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-700"
               title={t.start}
             >
               {hasError ? <RotateCw className="h-5 w-5" /> : <Play className="h-4 w-4 fill-current" />}

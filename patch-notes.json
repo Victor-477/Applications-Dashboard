@@ -1,5 +1,31 @@
 [
   {
+    "version": "2.3.0",
+    "date": "2026-05-27",
+    "title": "System styling and import stability",
+    "changes": [
+      "Added a Style tab in Settings for light and dark themes.",
+      "Added custom accent color selection with free color input and preset swatches.",
+      "Persisted appearance settings through the backend settings file.",
+      "Applied the selected accent color to buttons, active navigation states, cards, and form focus states.",
+      "Reset stale dashboard selection and side panels after importing instances.",
+      "Updated application versioning to 2.3.0."
+    ]
+  },
+  {
+    "version": "2.2.1",
+    "date": "2026-05-27",
+    "title": "Patch summary rendering and translations",
+    "changes": [
+      "Connected PROJECT_PATCH_SUMMARY.md to the Patch Files page.",
+      "Converted the project patch summary file to English-first content.",
+      "Added an About system page with translated content and GitHub links.",
+      "Added backend parsing for patch summary sections, current version, date, and main area.",
+      "Added translated interface labels for the patch summary metadata and known sections.",
+      "Included PROJECT_PATCH_SUMMARY.md in the packaged application files."
+    ]
+  },
+  {
     "version": "2.2.0",
     "date": "2026-05-26",
     "title": "Instance import, backup, and patch documentation",

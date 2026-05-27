@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Pencil, RefreshCw, Settings, Trash2, Upload, X } from 'lucide-react';
-import { AppState, AppConfig, ProgramSettings, SettingsTab, SystemLogLine } from '../types';
-import { Translation } from '../i18n';
+import { Download, Moon, Palette, Pencil, RefreshCw, Settings, Sun, Trash2, Upload, X } from 'lucide-react';
+import type { AppState, AppConfig, ProgramSettings, SettingsTab, SystemLogLine } from '../types';
+import type { Translation } from '../i18n';
 
 type ExportFormat = 'csv' | 'txt' | 'json' | 'ndjson' | 'log';
 
@@ -12,6 +12,8 @@ interface SettingsViewProps {
   onDelete: (id: string) => Promise<void>;
   onToggleEnabled: (id: string, enabled: boolean) => Promise<void>;
   onAppsChanged: () => Promise<void>;
+  programSettings: ProgramSettings;
+  onProgramSettingsChanged: (settings: ProgramSettings) => void;
   t: Translation;
 }
 
@@ -21,7 +23,17 @@ function formatDate(value: string) {
   return date.toLocaleString();
 }
 
-export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete, onToggleEnabled, onAppsChanged, t }: SettingsViewProps) {
+export default function SettingsView({
+  refreshKey,
+  initialTab,
+  onEdit,
+  onDelete,
+  onToggleEnabled,
+  onAppsChanged,
+  programSettings: currentProgramSettings,
+  onProgramSettingsChanged,
+  t,
+}: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [apps, setApps] = useState<AppState[]>([]);
   const [systemLogs, setSystemLogs] = useState<SystemLogLine[]>([]);
@@ -33,6 +45,8 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
     aiModel: 'gpt-4o-mini',
     aiBaseUrl: '',
     aiApiKey: '',
+    themeMode: currentProgramSettings.themeMode,
+    accentColor: currentProgramSettings.accentColor,
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -69,6 +83,7 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
       const settingsRes = await fetch('/api/settings');
       const settings = await settingsRes.json();
       setProgramSettings(settings);
+      onProgramSettingsChanged(settings);
       setSettingsForm(prev => ({
         ...prev,
         homepageUrl: settings.homepageUrl || 'http://localhost',
@@ -76,6 +91,8 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
         aiModel: settings.aiModel || 'gpt-4o-mini',
         aiBaseUrl: settings.aiBaseUrl || '',
         aiApiKey: '',
+        themeMode: settings.themeMode || 'light',
+        accentColor: settings.accentColor || '#009dea',
       }));
     } finally {
       setIsLoading(false);
@@ -90,11 +107,22 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
     setActiveTab(initialTab);
   }, [initialTab]);
 
+  useEffect(() => {
+    setSettingsForm(prev => ({
+      ...prev,
+      themeMode: currentProgramSettings.themeMode,
+      accentColor: currentProgramSettings.accentColor,
+    }));
+  }, [currentProgramSettings.themeMode, currentProgramSettings.accentColor]);
+
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'apps', label: t.settings.enableApps },
     { id: 'logs', label: t.settings.systemLogs },
     { id: 'general', label: t.settings.general },
+    { id: 'style', label: t.settings.style },
   ];
+
+  const accentSwatches = ['#009dea', '#2563eb', '#16a34a', '#dc2626', '#9333ea', '#f97316'];
 
   const handleToggle = async (app: AppState) => {
     await onToggleEnabled(app.config.id, app.config.enabled === false);
@@ -183,8 +211,7 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
     }
   };
 
-  const saveProgramSettings = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const persistProgramSettings = async () => {
     const response = await fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -192,9 +219,15 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
     });
     const settings = await response.json();
     setProgramSettings(settings);
+    onProgramSettingsChanged(settings);
     setSettingsForm(prev => ({ ...prev, aiApiKey: '' }));
     setSettingsSaved(true);
     setTimeout(() => setSettingsSaved(false), 2000);
+  };
+
+  const saveProgramSettings = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await persistProgramSettings();
   };
 
   const formatOptions: { value: ExportFormat; label: string }[] = [
@@ -486,7 +519,137 @@ export default function SettingsView({ refreshKey, initialTab, onEdit, onDelete,
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.2.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.3.0</p>
+                  </div>
+                </div>
+              </section>
+            </aside>
+          </div>
+        )}
+
+        {activeTab === 'style' && (
+          <div className="grid min-h-full gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <section className="space-y-5">
+              <div className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.appearanceCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.appearanceCategoryDescription}</p>
+                </div>
+
+                <div className="space-y-6 px-5 py-5">
+                  <div>
+                    <span className="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.themeMode}</span>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, themeMode: 'light' })}
+                        className={`flex items-center gap-3 border px-4 py-4 text-left transition-colors ${
+                          settingsForm.themeMode === 'light'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Sun className="h-5 w-5" />
+                        <span>
+                          <span className="block text-sm font-bold">{t.settings.lightTheme}</span>
+                          <span className="mt-1 block text-xs font-medium text-gray-500">{t.settings.lightThemeDescription}</span>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, themeMode: 'dark' })}
+                        className={`flex items-center gap-3 border px-4 py-4 text-left transition-colors ${
+                          settingsForm.themeMode === 'dark'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Moon className="h-5 w-5" />
+                        <span>
+                          <span className="block text-sm font-bold">{t.settings.darkTheme}</span>
+                          <span className="mt-1 block text-xs font-medium text-gray-500">{t.settings.darkThemeDescription}</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.accentColor}</span>
+                    <div className="grid gap-3 sm:grid-cols-[96px_minmax(0,1fr)]">
+                      <label className="flex h-24 cursor-pointer items-center justify-center border border-gray-300 bg-white">
+                        <input
+                          type="color"
+                          value={settingsForm.accentColor}
+                          onChange={event => setSettingsForm({ ...settingsForm, accentColor: event.target.value })}
+                          className="h-14 w-14 cursor-pointer border-0 bg-transparent p-0"
+                          title={t.settings.customColor}
+                        />
+                      </label>
+                      <div className="space-y-3">
+                        <input
+                          value={settingsForm.accentColor}
+                          onChange={event => setSettingsForm({ ...settingsForm, accentColor: event.target.value })}
+                          placeholder="#009dea"
+                          maxLength={7}
+                          className="w-full border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-blue-500"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          {accentSwatches.map(color => (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => setSettingsForm({ ...settingsForm, accentColor: color })}
+                              className={`h-9 w-9 border transition-transform hover:scale-105 ${
+                                settingsForm.accentColor.toLowerCase() === color.toLowerCase()
+                                  ? 'border-gray-900 ring-2 ring-blue-500/40'
+                                  : 'border-gray-200'
+                              }`}
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-xs font-medium text-gray-500">{t.settings.accentColorDescription}</p>
+                  </div>
+
+                  <div className="flex items-center gap-3 border-t border-gray-200 pt-5">
+                    <button
+                      type="button"
+                      onClick={persistProgramSettings}
+                      className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                    >
+                      {t.settings.saveSettings}
+                    </button>
+                    {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside className="space-y-4">
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Palette className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.previewTitle}</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.previewDescription}</p>
+                  </div>
+                </div>
+                <div className="mt-5 rounded-lg border border-gray-200 bg-white p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-gray-900">MariaDB</span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                  </div>
+                  <div className="my-4 h-px bg-gray-200" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-gray-500">{t.settings.previewAction}</span>
+                    <span
+                      className="h-8 w-8 rounded-full"
+                      style={{ backgroundColor: settingsForm.accentColor }}
+                    />
                   </div>
                 </div>
               </section>

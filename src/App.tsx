@@ -3,21 +3,32 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
-import { ChevronDown, FileText, Globe2, Home, Layers, MessageSquare, Plus, Settings } from 'lucide-react';
+import { useState, useEffect, type CSSProperties } from 'react';
+import { ChevronDown, FileText, Globe2, Home, Info, Layers, MessageSquare, Plus, Settings } from 'lucide-react';
+import AboutView from './components/AboutView';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import AIChatView from './components/AIChatView';
 import LogViewer from './components/LogViewer';
 import PatchFilesView from './components/PatchFilesView';
 import SettingsView from './components/SettingsView';
-import { AppState, AppConfig, AppView, LogLine, SettingsTab } from './types';
-import { isLanguage, Language, languageOptions, translations } from './i18n';
+import type { AppState, AppConfig, AppView, LogLine, ProgramSettings, SettingsTab } from './types';
+import { isLanguage, languageOptions, translations, type Language } from './i18n';
 
 function getInitialLanguage(): Language {
   const storedLanguage = window.localStorage.getItem('app-dashboard-language');
-  return isLanguage(storedLanguage) ? storedLanguage : 'pt';
+  return isLanguage(storedLanguage) ? storedLanguage : 'en';
 }
+
+const defaultProgramSettings: ProgramSettings = {
+  homepageUrl: 'http://localhost',
+  aiProvider: 'openai',
+  aiModel: 'gpt-4o-mini',
+  aiBaseUrl: '',
+  aiApiKeySet: false,
+  themeMode: 'light',
+  accentColor: '#009dea',
+};
 
 export default function App() {
   const [apps, setApps] = useState<AppState[]>([]);
@@ -30,6 +41,7 @@ export default function App() {
   const [language, setLanguage] = useState<Language>(getInitialLanguage);
   const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const [settingsRefreshKey, setSettingsRefreshKey] = useState(0);
+  const [programSettings, setProgramSettings] = useState<ProgramSettings>(defaultProgramSettings);
   const t = translations[language];
   const selectedLanguage = languageOptions.find(option => option.code === language)!;
   const selectedApp = apps.find(a => a.config.id === selectedAppId);
@@ -41,6 +53,11 @@ export default function App() {
     hasSidePanelOpen ? 'basis-[49%]' : 'basis-full',
     currentView === 'services' ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
   ].join(' ');
+  const themeVars = {
+    '--app-accent': programSettings.accentColor,
+    '--app-accent-soft': `${programSettings.accentColor}18`,
+    '--app-accent-ring': `${programSettings.accentColor}40`,
+  } as CSSProperties;
 
   const statusSummary = apps.reduce(
     (summary, app) => {
@@ -58,6 +75,10 @@ export default function App() {
 
   useEffect(() => {
     fetchApps();
+    fetch('/api/settings')
+      .then(res => res.json())
+      .then(settings => setProgramSettings({ ...defaultProgramSettings, ...settings }))
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -111,6 +132,14 @@ export default function App() {
       if (!current) return null;
       return data.some((app: AppState) => app.config.id === current) ? current : null;
     });
+  };
+
+  const handleAppsChanged = async () => {
+    setSelectedAppId(null);
+    setEditingApp(null);
+    setIsFormOpen(false);
+    await fetchApps();
+    setSettingsRefreshKey(key => key + 1);
   };
 
   const handleCreateApp = async (config: Partial<AppConfig>) => {
@@ -220,11 +249,16 @@ export default function App() {
     setEditingApp(null);
   };
 
+  const openAboutView = () => {
+    setCurrentView('about');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
   const openHomePage = async () => {
-    const res = await fetch('/api/settings');
-    const settings = await res.json();
-    if (settings.homepageUrl) {
-      window.open(settings.homepageUrl, '_blank', 'noopener,noreferrer');
+    if (programSettings.homepageUrl) {
+      window.open(programSettings.homepageUrl, '_blank', 'noopener,noreferrer');
       return;
     }
     alert(t.homepageMissing);
@@ -232,7 +266,10 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-[#edf0f2] font-sans text-gray-900">
+    <div
+      className={`theme-shell theme-${programSettings.themeMode} flex h-screen flex-col overflow-hidden bg-[#edf0f2] font-sans text-gray-900`}
+      style={themeVars}
+    >
       <header className="relative z-20 flex h-[94px] shrink-0 items-center justify-between border-b border-gray-200 bg-white px-8 shadow-sm">
         <div className="flex items-center gap-4">
           <img src="/ind40-logo.png" alt="Applications Dashboard" className="h-8 w-8 object-contain" />
@@ -333,15 +370,26 @@ export default function App() {
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={openSettingsView}
-            className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'settings' ? 'text-blue-600' : 'text-gray-700'}`}
-            title={t.settings.title}
-          >
-            {currentView === 'settings' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
-            <Settings className="h-5 w-5" />
-          </button>
+          <div className="flex w-full flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={openSettingsView}
+              className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'settings' ? 'text-blue-600' : 'text-gray-700'}`}
+              title={t.settings.title}
+            >
+              {currentView === 'settings' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+              <Settings className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={openAboutView}
+              className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'about' ? 'text-blue-600' : 'text-gray-700'}`}
+              title={t.nav.about}
+            >
+              {currentView === 'about' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+              <Info className="h-5 w-5" />
+            </button>
+          </div>
         </aside>
 
         <section className="flex min-w-0 flex-1 gap-6 overflow-hidden px-6 py-6">
@@ -353,13 +401,17 @@ export default function App() {
                 onEdit={openEditForm}
                 onDelete={handleDeleteApp}
                 onToggleEnabled={handleToggleEnabled}
-                onAppsChanged={fetchApps}
+                onAppsChanged={handleAppsChanged}
+                programSettings={programSettings}
+                onProgramSettingsChanged={setProgramSettings}
                 t={t}
               />
             ) : currentView === 'ai' ? (
               <AIChatView t={t} />
             ) : currentView === 'patches' ? (
-              <PatchFilesView t={t} />
+              <PatchFilesView t={t} language={language} />
+            ) : currentView === 'about' ? (
+              <AboutView t={t} />
             ) : (
               <>
                 <div className="mb-6 flex items-center justify-between">
@@ -424,7 +476,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.2.0</span>
+        <span>Control Panel - Applications Dashboard v2.3.0</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>
