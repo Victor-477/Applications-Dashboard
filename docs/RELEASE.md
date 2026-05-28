@@ -1,8 +1,8 @@
-# Release guide
+# Release Guide
 
-This guide is for maintainers who publish Applications Dashboard versions on GitHub Releases.
+This guide is for maintainers publishing Applications Dashboard on GitHub Releases.
 
-## 1. Prepare the environment
+## 1. Prepare
 
 Install dependencies:
 
@@ -10,40 +10,57 @@ Install dependencies:
 npm install
 ```
 
-Validate the project:
+Confirm the version in:
+
+- `package.json`
+- `package-lock.json`
+- `patch-notes.json`
+- `PROJECT_PATCH_SUMMARY.md`
+- App footer and Settings version display
+
+## 2. Validate
+
+Run:
 
 ```bash
 npm run lint
 npm run build
+npx electron scripts\verify-i18n.cjs
 ```
 
-## 2. Generate the portable version
+If UI documentation changed, regenerate screenshots:
 
-Use:
+```bash
+npx electron scripts\capture-readme-screenshots.cjs
+```
+
+## 3. Package
+
+Generate the portable build and ZIP:
 
 ```bash
 npm run package:win:zip
 ```
 
-The portable package folder is created at:
+Output folder:
 
 ```text
 release/APPDashboard/
 ```
 
-The ZIP file ready to attach is created at:
+ZIP file:
 
 ```text
 release/APPDashboard-windows-portable.zip
 ```
 
-The main executable is:
+Executable:
 
 ```text
 release/APPDashboard/APPDashboard.exe
 ```
 
-## 3. Test before publishing
+## 4. Test the Portable App
 
 Open:
 
@@ -51,40 +68,28 @@ Open:
 release/APPDashboard/APPDashboard.exe
 ```
 
-Check that:
+Check:
 
-- The window opens correctly.
-- The application list appears.
-- The dashboard can start and stop a test process.
-- Logs appear in the log panel.
+- Window opens.
+- Application icon is correct.
+- Dashboard loads.
+- Local API responds at `http://127.0.0.1:3764/api/apps`.
+- Patch notes report the expected version.
+- Settings opens.
+- Language selector works.
+- A test instance can be started and stopped.
 
-## 4. Compress for GitHub
-
-If you used `npm run package:win:zip`, the ZIP file is already ready. If you prefer to compress manually, compress the entire folder:
-
-```text
-release/APPDashboard/
-```
-
-Suggested file name:
-
-```text
-APPDashboard-windows-portable.zip
-```
-
-Important: do not publish only `APPDashboard.exe`. The application depends on the Electron support files located in the same folder.
-
-## 5. Create the GitHub release
+## 5. Publish on GitHub
 
 On GitHub:
 
-1. Open the **Releases** tab.
-2. Click **Draft a new release**.
-3. Create a tag, for example `v1.0.0`.
+1. Open **Releases**.
+2. Draft a new release.
+3. Create a tag such as `v2.4.1`.
 4. Attach `APPDashboard-windows-portable.zip`.
-5. Describe the main changes and usage instructions.
+5. Add a short summary from `patch-notes.json`.
 
-Suggested short release text:
+Suggested release text:
 
 ```text
 Download APPDashboard-windows-portable.zip, extract the folder, and run APPDashboard.exe.
@@ -92,11 +97,13 @@ Download APPDashboard-windows-portable.zip, extract the folder, and run APPDashb
 Node.js and the source code are not required to use this release version.
 ```
 
-## Publishing checklist
+## Important
 
-- `npm run lint` passed.
-- `npm run build` passed.
-- `npm run package:win:zip` generated `release/APPDashboard`.
-- The executable opened on Windows.
-- The local API responded at `http://127.0.0.1:3764/api/apps`.
-- The `.zip` contains the complete application folder.
+Do not publish only `APPDashboard.exe`. Electron needs the support files in the portable folder.
+
+Do not commit generated folders:
+
+- `build/`
+- `dist/`
+- `release/`
+- `.cache/`

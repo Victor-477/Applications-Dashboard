@@ -4,9 +4,20 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.4.0
-- Date: 2026-05-27
-- Main area: project structure, executable icon reliability, and portable desktop runtime stability.
+- Version: 2.4.1
+- Date: 2026-05-28
+- Main area: expanded language support before the 2.5.0 release.
+
+## 2.4.1
+
+- Added German, Spanish, and Japanese to the language selector.
+- Translated the main interface, navigation, settings, AI Chat, About, and Patch Files labels from the English source text.
+- Updated HTML language metadata for each available language.
+- Added translated patch note entries for the new languages.
+- Restructured README into focused documentation guides.
+- Regenerated screenshots for dashboard, settings, language selector, Patch Files, AI Chat, and About.
+- Documented user workflows, configuration, localization, development, testing, release, and security guidance.
+- Updated application versioning to 2.4.1.
 
 ## 2.4.0
 

@@ -20,6 +20,15 @@ function getInitialLanguage(): Language {
   return isLanguage(storedLanguage) ? storedLanguage : 'en';
 }
 
+const htmlLanguageMap: Record<Language, string> = {
+  en: 'en',
+  pt: 'pt-BR',
+  zh: 'zh-CN',
+  de: 'de',
+  es: 'es',
+  ja: 'ja',
+};
+
 function getAccentContrastColor(color: string) {
   const hex = color.replace('#', '');
   if (!/^[0-9a-f]{6}$/i.test(hex)) return '#ffffff';
@@ -109,7 +118,7 @@ export default function App() {
 
   useEffect(() => {
     window.localStorage.setItem('app-dashboard-language', language);
-    document.documentElement.lang = language === 'zh' ? 'zh-CN' : language;
+    document.documentElement.lang = htmlLanguageMap[language];
   }, [language]);
 
   useEffect(() => {
@@ -502,7 +511,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.4.0 - Made By Victor Samuel</span>
+        <span>Control Panel - Applications Dashboard v2.4.1 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

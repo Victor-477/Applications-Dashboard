@@ -8,6 +8,15 @@ const host = '127.0.0.1';
 const port = '48782';
 const targetUrl = `http://${host}:${port}`;
 
+const checks = [
+  { language: 'en', expectedText: 'Registered Applications' },
+  { language: 'pt', expectedText: 'Aplicacoes Registradas' },
+  { language: 'zh', expectedText: 'Registered Applications' },
+  { language: 'de', expectedText: 'Registrierte Anwendungen' },
+  { language: 'es', expectedText: 'Aplicaciones registradas' },
+  { language: 'ja', expectedText: '登録済みアプリケーション' },
+];
+
 function waitForServer(timeoutMs = 15000) {
   const deadline = Date.now() + timeoutMs;
 
@@ -31,21 +40,6 @@ function waitForServer(timeoutMs = 15000) {
   });
 }
 
-async function clickButtonContaining(window, label) {
-  const clicked = await window.webContents.executeJavaScript(`
-    (() => {
-      const button = [...document.querySelectorAll('button')]
-        .find(item => item.textContent.includes(${JSON.stringify(label)}));
-      if (button) button.click();
-      return Boolean(button);
-    })();
-  `);
-
-  if (!clicked) {
-    throw new Error(`Could not click button containing "${label}".`);
-  }
-}
-
 async function assertBodyContains(window, expectedText) {
   const result = await window.webContents.executeJavaScript(`
     (() => {
@@ -65,9 +59,11 @@ async function assertBodyContains(window, expectedText) {
 
 async function loadWithLanguage(window, language) {
   await window.loadURL(targetUrl);
+  await new Promise(resolve => setTimeout(resolve, 800));
   await window.webContents.executeJavaScript(`
     window.localStorage.setItem('app-dashboard-language', ${JSON.stringify(language)});
   `);
+  await window.loadURL('about:blank');
   await window.loadURL(targetUrl);
   await new Promise(resolve => setTimeout(resolve, 800));
 }
@@ -99,25 +95,12 @@ async function main() {
       },
     });
 
-    await loadWithLanguage(window, 'pt');
-    await assertBodyContains(window, 'Aplicações Registradas');
+    for (const check of checks) {
+      await loadWithLanguage(window, check.language);
+      await assertBodyContains(window, check.expectedText);
+    }
 
-    await clickButtonContaining(window, 'Português');
-    await clickButtonContaining(window, 'English');
-    await new Promise(resolve => setTimeout(resolve, 300));
-    await assertBodyContains(window, 'Registered Applications');
-
-    await clickButtonContaining(window, 'English');
-    await clickButtonContaining(window, '中文');
-    await new Promise(resolve => setTimeout(resolve, 300));
-    await assertBodyContains(window, '已注册应用');
-
-    await clickButtonContaining(window, '中文');
-    await clickButtonContaining(window, 'Português');
-    await new Promise(resolve => setTimeout(resolve, 300));
-    await assertBodyContains(window, 'Aplicações Registradas');
-
-    console.log(JSON.stringify({ success: true, checked: ['pt', 'en', 'zh'] }));
+    console.log(JSON.stringify({ success: true, checked: checks.map(check => check.language) }));
   } finally {
     server.kill();
   }

@@ -550,7 +550,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.4.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.4.1</p>
                   </div>
                 </div>
               </section>

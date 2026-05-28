@@ -1,66 +1,80 @@
-# Application configuration
+# Configuration
 
-The `apps.json` file stores the list of applications displayed in the dashboard. It can be edited through the dashboard itself or manually.
+Applications Dashboard stores local instance configuration in `apps.json` and program preferences in `settings.json`.
 
-## Complete example
+`settings.json` is ignored by Git because it can contain local preferences and API key configuration.
+
+## Instance Configuration
+
+Instances can be edited through the UI or manually in `apps.json`.
+
+Example:
 
 ```json
 [
   {
-    "id": "database",
-    "name": "Database",
-    "command": "mariadbd.exe",
-    "args": "--datadir=./data --port=3307 --bind-address=127.0.0.1 --console",
-    "port": "3307",
-    "cwd": "database/mariadb/bin",
-    "dependsOn": [],
-    "shell": false
-  },
-  {
-    "id": "backend",
+    "id": "backend-local",
     "name": "Backend API",
     "command": "npm",
     "args": "run dev",
     "port": "3000",
     "cwd": "../backend",
-    "dependsOn": ["database"],
-    "shell": true
+    "dependsOn": [],
+    "shell": true,
+    "enabled": true,
+    "advancedEnabled": false
   }
 ]
 ```
 
-## Fields
+## Basic Fields
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `id` | Yes | Unique identifier. Use letters, numbers, and hyphens to make dependencies easier to read. |
-| `name` | Yes | Name displayed in the interface. |
-| `command` | Yes | Command or executable that will be started. |
-| `args` | No | Command arguments. |
-| `port` | No | Port used to detect whether the application is active and avoid duplicates. |
-| `cwd` | No | Initial working directory for the process. If empty, the dashboard folder is used. |
-| `dependsOn` | No | List of `id`s that must start before this app. |
-| `shell` | No | `true` runs through the Windows shell; `false` runs the binary directly. |
+| `id` | Yes | Unique internal identifier. It is also used by dependencies. |
+| `name` | Yes | Name shown on cards and lists. |
+| `command` | Yes | Executable or base command. |
+| `args` | No | Arguments passed to the command. |
+| `port` | No | Port used for status detection and duplicate prevention. |
+| `cwd` | No | Working directory. Empty means the dashboard folder. |
+| `dependsOn` | No | Array of instance IDs that should start first. |
+| `shell` | No | `true` runs through the Windows shell. `false` runs the executable directly. |
+| `enabled` | No | `false` hides the instance from the main dashboard. |
 
-## Relative directories
+## Advanced Fields
 
-The `cwd` field accepts absolute or relative paths.
+Advanced fields are active only when `advancedEnabled` is `true`.
 
-Examples:
+| Field | Description |
+| --- | --- |
+| `advancedEnabled` | Enables advanced execution fields. This should be chosen during creation and is locked after creation. |
+| `alternatePorts` | Alternative ports checked when the primary port is unavailable. |
+| `secondaryCwd` | Optional second working directory for advanced execution flows. |
+| `advancedCommand` | Optional advanced command. |
+| `advancedArgs` | Arguments for the advanced command. |
+| `advancedShell` | Shell mode for the advanced command. |
+
+## Working Directories
+
+`cwd` accepts absolute and relative paths.
+
+Absolute example:
 
 ```json
 "cwd": "C:\\Projects\\backend"
 ```
 
+Relative example:
+
 ```json
 "cwd": "../backend"
 ```
 
-When a relative path does not exist from the dashboard folder, the server tries to resolve it from the project root that contains folders such as `backend`, `erp`, and `loja`.
+If a relative path does not exist from the dashboard folder, the backend tries to resolve it from a nearby project root containing known project folders.
 
 ## Dependencies
 
-Use `dependsOn` when a service depends on another service.
+Use `dependsOn` when one service must start before another.
 
 ```json
 {
@@ -75,17 +89,21 @@ Use `dependsOn` when a service depends on another service.
 }
 ```
 
-When `frontend` starts, the dashboard tries to start `backend` first.
+Starting `frontend` attempts to start `backend` first.
 
-## Port usage
+## Port Detection
 
 When `port` is provided, the dashboard checks `127.0.0.1:<port>`.
 
-If the port is already open, the service appears as active and the dashboard avoids starting a duplicate process. When stopping the app, the dashboard can also try to terminate the process occupying that port on Windows.
+If the port is open:
 
-## When to use `shell`
+- The service can appear as running.
+- The dashboard avoids starting a duplicate process.
+- Stop actions can try to terminate the process occupying that port on Windows.
 
-Use `shell: true` for commands normally executed from a terminal, such as:
+## Shell Mode
+
+Use `shell: true` for commands usually run from a terminal:
 
 ```json
 {
@@ -95,16 +113,70 @@ Use `shell: true` for commands normally executed from a terminal, such as:
 }
 ```
 
-Use `shell: false` for direct executables when you want to avoid shell interpretation:
+Use `shell: false` for direct executables:
 
 ```json
 {
-  "command": "C:\\Tools\\app.exe",
+  "command": "C:\\Tools\\service.exe",
   "args": "--port 8080",
   "shell": false
 }
 ```
 
-## Logs
+## Importing Instances
 
-Everything the process writes to stdout and stderr appears in the selected application's log panel. The server keeps the last 1000 lines per app while it is running.
+Settings > General > Instance settings can import JSON.
+
+Accepted formats:
+
+```json
+[
+  {
+    "name": "Worker",
+    "command": "npm",
+    "args": "run worker"
+  }
+]
+```
+
+Or:
+
+```json
+{
+  "apps": [
+    {
+      "name": "Worker",
+      "command": "npm",
+      "args": "run worker"
+    }
+  ]
+}
+```
+
+The import tool validates the payload and supports replacing the current instance list.
+
+## Backing Up Instances
+
+Settings > General > Instance settings can export the current instance list as JSON.
+
+Backups are useful before:
+
+- Replacing all instances.
+- Moving the dashboard to another machine.
+- Preparing a release or demo.
+
+## Program Settings
+
+Program settings are stored in `settings.json`.
+
+Common fields:
+
+| Field | Description |
+| --- | --- |
+| `homepageUrl` | URL opened by the HomePage sidebar button. |
+| `aiProvider` | `openai`, `gemini`, `anthropic`, or `openai-compatible`. |
+| `aiModel` | Model name used by AI Chat. |
+| `aiBaseUrl` | Custom base URL for OpenAI-compatible providers. |
+| `aiApiKey` | Local API key. It is not exposed to the browser. |
+| `themeMode` | `light` or `dark`. |
+| `accentColor` | Six-digit hex color with `#`, such as `#009dea`. |
