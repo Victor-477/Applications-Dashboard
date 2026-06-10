@@ -7,6 +7,7 @@ export interface AppConfig {
   args: string;
   port: string;
   cwd: string;
+  webLink?: string;
   dependsOn?: string[];
   shell?: boolean;
   enabled?: boolean;
@@ -19,6 +20,7 @@ export interface AppConfig {
 }
 
 export interface ProgramSettingsFile {
+  homepageMode: 'internal' | 'custom';
   homepageUrl: string;
   aiProvider: 'openai' | 'gemini' | 'anthropic' | 'openai-compatible';
   aiModel: string;
@@ -26,6 +28,7 @@ export interface ProgramSettingsFile {
   aiApiKey: string;
   themeMode: 'light' | 'dark';
   accentColor: string;
+  dashboardLayout: 'cards' | 'list';
 }
 
 export interface SystemLogEntry {

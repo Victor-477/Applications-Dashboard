@@ -8,7 +8,14 @@ import { getImportAppsFromPayload, normalizeImportedApp } from './server/appImpo
 import { getDefaultApps } from './server/defaultApps';
 import { readJsonFile } from './server/fileUtils';
 import { getPatchNotesPayload } from './server/patchNotes';
-import { getDefaultSettings, normalizeAccentColor, normalizeThemeMode, publicSettings } from './server/settingsUtils';
+import {
+  getDefaultSettings,
+  normalizeAccentColor,
+  normalizeDashboardLayout,
+  normalizeHomepageMode,
+  normalizeThemeMode,
+  publicSettings
+} from './server/settingsUtils';
 import { clearExportedSystemLogs, getSystemLogsForExport, serializeSystemLogs } from './server/systemLogs';
 import type { AppConfig, ProgramSettingsFile, SystemLogEntry } from './server/types';
 
@@ -24,6 +31,7 @@ const SETTINGS_FILE = path.join(PANEL_DIR, 'settings.json');
 const PATCH_NOTES_FILE = path.join(PANEL_DIR, 'patch-notes.json');
 const PATCH_SUMMARY_FILE = path.join(PANEL_DIR, 'PROJECT_PATCH_SUMMARY.md');
 const PACKAGE_FILE = path.join(PANEL_DIR, 'package.json');
+const HOMEPAGE_TEMPLATE_FILE = path.join(PANEL_DIR, 'homepage.html');
 
 const runningProcesses = new Map<string, ChildProcess[]>();
 
@@ -108,6 +116,176 @@ function splitArgs(args?: string) {
   if (!args) return [];
   const matches = args.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
   return matches.map(arg => arg.replace(/^"|"$/g, ''));
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+async function readCustomHomepage(): Promise<string | null> {
+  try {
+    const html = await fs.readFile(HOMEPAGE_TEMPLATE_FILE, 'utf-8');
+    return html.trim() ? html : null;
+  } catch {
+    return null;
+  }
+}
+
+function instanceWebLink(config: AppConfig, activePort?: string) {
+  const link = String(config.webLink || '').trim();
+  if (link) return link;
+  const port = String(activePort || config.port || '').trim();
+  return port ? `http://127.0.0.1:${port}` : '';
+}
+
+function homepageTheme(settings: ProgramSettingsFile) {
+  const accent = normalizeAccentColor(settings.accentColor);
+  if (normalizeThemeMode(settings.themeMode) === 'dark') {
+    return {
+      accent,
+      scheme: 'dark',
+      bg: '#0f172a',
+      surface: '#1e293b',
+      surfaceAlt: '#172033',
+      text: '#f1f5f9',
+      muted: '#94a3b8',
+      border: '#334155',
+    };
+  }
+  return {
+    accent,
+    scheme: 'light',
+    bg: '#edf0f2',
+    surface: '#ffffff',
+    surfaceAlt: '#f8fafc',
+    text: '#111827',
+    muted: '#64748b',
+    border: '#d4dde5',
+  };
+}
+
+async function renderInternalHomepage(settings: ProgramSettingsFile) {
+  const apps = (await getApps()).filter(config => config.enabled !== false);
+  const states = await Promise.all(apps.map(async config => {
+    const activePort = await getFirstOpenPort(config);
+    const running = getRunningAppProcesses(config.id).length > 0 || Boolean(activePort);
+    return { config, running, href: instanceWebLink(config, activePort) };
+  }));
+
+  const layout = normalizeDashboardLayout(settings.dashboardLayout);
+  const theme = homepageTheme(settings);
+  const runningCount = states.filter(state => state.running).length;
+
+  const renderItem = (state: typeof states[number]) => {
+    const { config, running, href } = state;
+    const meta = `${escapeHtml(config.command)} ${escapeHtml(config.args || '')}`.trim();
+    const badge = `<span class="badge ${running ? 'is-running' : 'is-stopped'}"><span class="dot"></span>${running ? 'Running' : 'Stopped'}</span>`;
+    const action = href
+      ? `<a class="open" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">Open</a>`
+      : '<span class="muted">No web link</span>';
+    return `
+          <article class="service">
+            <div class="service-main">
+              <h3>${escapeHtml(config.name)}</h3>
+              <p class="cmd">${meta || '&mdash;'}</p>
+            </div>
+            <div class="service-side">${badge}${action}</div>
+          </article>`;
+  };
+
+  const items = states.length > 0
+    ? states.map(renderItem).join('')
+    : '<p class="empty">No enabled instances are configured yet. Add instances from the control panel.</p>';
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="refresh" content="20" />
+    <title>Applications Dashboard HomePage</title>
+    <style>
+      :root {
+        color-scheme: ${theme.scheme};
+        --accent: ${theme.accent};
+        --bg: ${theme.bg};
+        --surface: ${theme.surface};
+        --surface-alt: ${theme.surfaceAlt};
+        --text: ${theme.text};
+        --muted: ${theme.muted};
+        --border: ${theme.border};
+        font-family: Inter, Segoe UI, Arial, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+      header { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 26px 40px; background: var(--surface); border-bottom: 1px solid var(--border); }
+      h1 { margin: 0; font-size: 24px; }
+      .subtitle { margin: 6px 0 0; color: var(--muted); font-size: 14px; }
+      .panel-link { color: #fff; background: var(--accent); text-decoration: none; border-radius: 6px; padding: 10px 16px; font-weight: 700; font-size: 14px; white-space: nowrap; }
+      main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 48px; }
+      .intro { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px 24px; margin-bottom: 26px; }
+      .intro h2 { margin: 0 0 10px; font-size: 18px; }
+      .intro ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 14px; line-height: 1.7; }
+      .intro b { color: var(--text); }
+      .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+      .section-head h2 { margin: 0; font-size: 16px; }
+      .count { color: var(--muted); font-size: 13px; font-weight: 600; }
+      .grid { display: grid; gap: 14px; }
+      .grid.cards { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+      .grid.list { grid-template-columns: 1fr; }
+      .service { display: flex; gap: 18px; align-items: center; justify-content: space-between; padding: 18px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+      .grid.cards .service { flex-direction: column; align-items: stretch; }
+      .service h3 { margin: 0; font-size: 17px; }
+      .cmd { margin: 6px 0 0; color: var(--muted); font-family: Consolas, monospace; font-size: 12px; word-break: break-word; }
+      .service-side { display: flex; align-items: center; gap: 14px; }
+      .grid.cards .service-side { justify-content: space-between; }
+      .badge { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
+      .badge .dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa6b2; }
+      .badge.is-running { color: #2f9e44; } .badge.is-running .dot { background: #62b43d; }
+      .badge.is-stopped .dot { background: #9aa6b2; }
+      .open { color: #fff; background: var(--accent); text-decoration: none; border-radius: 6px; padding: 8px 16px; font-weight: 700; font-size: 13px; }
+      .muted { color: var(--muted); font-size: 13px; font-weight: 600; }
+      .empty { color: var(--muted); font-size: 14px; font-weight: 600; }
+      footer { max-width: 1080px; margin: 0 auto; padding: 0 24px 40px; color: var(--muted); font-size: 12px; }
+      @media (max-width: 680px) {
+        header { flex-direction: column; align-items: flex-start; }
+        .panel-link { width: 100%; text-align: center; }
+        .service { flex-direction: column; align-items: stretch; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Applications Dashboard HomePage</h1>
+        <p class="subtitle">Internal web page served by the local dashboard server &mdash; no external Apache required.</p>
+      </div>
+      <a class="panel-link" href="/">Open control panel</a>
+    </header>
+    <main>
+      <section class="intro">
+        <h2>How this dashboard works</h2>
+        <ul>
+          <li>Each <b>instance</b> is a local service the panel can start, stop, and monitor for you.</li>
+          <li>The <b>control panel</b> manages instances, logs, AI Chat, and settings &mdash; open it from the button above.</li>
+          <li>This HomePage is served by the panel itself; you can replace it with your own template or point to a custom URL in <b>Settings &gt; General</b>.</li>
+          <li>Use the <b>Open</b> action on a running instance to jump straight to its web address.</li>
+        </ul>
+      </section>
+      <div class="section-head">
+        <h2>Configured instances</h2>
+        <span class="count">${runningCount} running / ${states.length} total</span>
+      </div>
+      <section class="grid ${layout === 'list' ? 'list' : 'cards'}">${items}</section>
+    </main>
+    <footer>This page refreshes automatically every 20 seconds.</footer>
+  </body>
+</html>`;
 }
 
 function runCommand(command: string, args: string[], cwd: string, appId: string, timeoutMs = 120000) {
@@ -583,6 +761,7 @@ app.get('/api/settings', async (req, res) => {
 app.put('/api/settings', async (req, res) => {
   const current = await getSettings();
   const next: ProgramSettingsFile = {
+    homepageMode: normalizeHomepageMode(req.body.homepageMode || current.homepageMode),
     homepageUrl: String(req.body.homepageUrl || current.homepageUrl || 'http://localhost').trim(),
     aiProvider: ['openai', 'gemini', 'anthropic', 'openai-compatible'].includes(req.body.aiProvider)
       ? req.body.aiProvider
@@ -594,11 +773,49 @@ app.put('/api/settings', async (req, res) => {
       : current.aiApiKey,
     themeMode: normalizeThemeMode(req.body.themeMode || current.themeMode),
     accentColor: normalizeAccentColor(req.body.accentColor, current.accentColor),
+    dashboardLayout: normalizeDashboardLayout(req.body.dashboardLayout || current.dashboardLayout),
   };
 
   await saveSettings(next);
   pushSystemLog('Program settings updated', 'info', 'settings');
   res.json(publicSettings(next));
+});
+
+app.get('/internal-homepage', async (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  const custom = await readCustomHomepage();
+  if (custom) {
+    res.send(custom);
+    return;
+  }
+  const settings = await getSettings();
+  res.send(await renderInternalHomepage(settings));
+});
+
+app.get('/api/homepage-template', async (req, res) => {
+  const custom = await readCustomHomepage();
+  res.json({ custom: Boolean(custom) });
+});
+
+app.post('/api/homepage-template', async (req, res) => {
+  const html = typeof req.body?.html === 'string' ? req.body.html : '';
+  if (!html.trim()) {
+    res.status(400).json({ error: 'A non-empty HTML document is required.' });
+    return;
+  }
+  await fs.writeFile(HOMEPAGE_TEMPLATE_FILE, html, 'utf-8');
+  pushSystemLog('Custom HomePage template uploaded', 'info', 'settings');
+  res.json({ custom: true });
+});
+
+app.delete('/api/homepage-template', async (req, res) => {
+  try {
+    await fs.unlink(HOMEPAGE_TEMPLATE_FILE);
+    pushSystemLog('Custom HomePage template reset to default', 'info', 'settings');
+  } catch (error) {
+    if ((error as any).code !== 'ENOENT') throw error;
+  }
+  res.json({ custom: false });
 });
 
 app.post('/api/ai-chat', async (req, res) => {
@@ -750,6 +967,7 @@ app.put('/api/apps/:id', async (req, res) => {
     args: req.body.args,
     port: req.body.port,
     cwd: req.body.cwd,
+    webLink: String(req.body.webLink || '').trim(),
     dependsOn: req.body.dependsOn || [],
     shell: req.body.shell,
     id,

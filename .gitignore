@@ -9,3 +9,5 @@ coverage/
 .env*
 !.env.example
 settings.json
+homepage.html
+.claude/

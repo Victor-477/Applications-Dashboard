@@ -76,15 +76,17 @@ The Electron app starts the local backend and loads the UI from the local server
 | Path | Purpose |
 | --- | --- |
 | `src/App.tsx` | Main shell, navigation, state, and layout. |
-| `src/components/AppCard.tsx` | Service card. |
+| `src/components/AppCard.tsx` | Service card (card layout). |
+| `src/components/AppListItem.tsx` | Compact service row (list layout). |
 | `src/components/AppForm.tsx` | Instance create/edit panel. |
 | `src/components/LogViewer.tsx` | Terminal/log view. |
 | `src/components/SettingsView.tsx` | Settings page and tabs. |
-| `src/components/settings/` | Smaller Settings dialog components. |
+| `src/components/settings/` | Smaller Settings dialog components (logs export, instance import). |
 | `src/components/PatchFilesView.tsx` | Patch notes and commit view. |
 | `src/components/AIChatView.tsx` | AI Chat page. |
 | `src/components/AboutView.tsx` | About system page. |
-| `src/i18n.ts` | Interface translations. |
+| `src/i18n.ts` | Interface translations and language options. |
+| `src/i18n/patchTextTranslations.ts` | Translated Patch Files and patch summary text. |
 
 ## Screenshots
 
@@ -107,4 +109,13 @@ The following folders are generated and ignored:
 - `.cache/`
 - `node_modules/`
 
-Do not commit generated folders.
+The following local files are also generated at runtime and ignored:
+
+- `settings.json` (program preferences and API key).
+- `homepage.html` (uploaded custom HomePage template).
+
+Do not commit generated folders or local runtime files.
+
+## Electron Dependency
+
+The portable packaging copies the Electron runtime from `node_modules/electron/dist`, so the Electron binary must be downloaded during `npm install`. Electron is pinned to `33.4.11`; the packaging script (`scripts/package-portable.cjs`) fails fast with a clear message if the binary or the production build is missing.

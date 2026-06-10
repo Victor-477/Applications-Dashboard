@@ -18,11 +18,14 @@ export default function AppCard({ app, hasError, isSelected, onSelect, onStart, 
   const statusTone = isRunning ? 'bg-[#62b43d]' : hasError ? 'bg-[#d60000]' : 'bg-gray-400';
   const statusLabel = isRunning ? 'running' : hasError ? 'failed' : 'stopped';
   const displayPort = app.activePort || app.config.port;
-  const canOpenApp = Boolean(displayPort);
+  const customLink = app.config.webLink?.trim();
+  const openTarget = customLink || (displayPort ? `http://127.0.0.1:${displayPort}` : '');
+  const canOpenApp = Boolean(openTarget);
+  const openTitle = customLink ? `${t.openLink} ${customLink}` : `${t.portTitle} ${displayPort}`;
 
   const openApp = () => {
-    if (!displayPort) return;
-    window.open(`http://127.0.0.1:${displayPort}`, '_blank', 'noopener,noreferrer');
+    if (!openTarget) return;
+    window.open(openTarget, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -47,22 +50,21 @@ export default function AppCard({ app, hasError, isSelected, onSelect, onStart, 
       <div>
         <div className="mb-3 h-px w-full bg-[#cfd8df]" />
         <div className="grid h-8 grid-cols-3 items-center text-[#8ca6b8]">
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              openApp();
-            }}
-            disabled={!canOpenApp}
-            className={`mx-auto flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
-              canOpenApp
-                ? 'text-blue-600 hover:bg-blue-50 hover:text-blue-600'
-                : 'cursor-not-allowed text-[#a8bac6]'
-            }`}
-            title={displayPort ? `${t.portTitle} ${displayPort}` : t.portTitle}
-          >
-            <Globe2 className="h-5 w-5" />
-          </button>
+          {canOpenApp ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                openApp();
+              }}
+              className="mx-auto flex h-8 w-8 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
+              title={openTitle}
+            >
+              <Globe2 className="h-5 w-5" />
+            </button>
+          ) : (
+            <span aria-hidden="true" />
+          )}
 
           {isRunning ? (
             <button

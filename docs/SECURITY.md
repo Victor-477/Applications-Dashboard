@@ -38,9 +38,15 @@ AI API keys are stored in local settings and are sent only from the backend to t
 
 The public settings endpoint reports only whether a key is configured. It does not return the key to the browser.
 
+## HomePage Template
+
+The internal HomePage can be replaced by uploading an HTML file. The uploaded page is stored locally as `homepage.html` and served exactly as provided, without sanitization.
+
+Only upload templates you trust. Treat the uploaded HTML as code that runs in the browser when the HomePage is opened.
+
 ## System Logs
 
-System logs are local records. Exported logs can include instance names, command-related messages, and error details.
+System logs are local records. Exported logs can include instance names, command-related messages, and error details. The internal HomePage also lists instance names and commands.
 
 Review exported files before sharing them.
 

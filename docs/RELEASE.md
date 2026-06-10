@@ -71,7 +71,7 @@ release/APPDashboard/APPDashboard.exe
 Check:
 
 - Window opens.
-- Application icon is correct.
+- Application icon is correct. The packaging script embeds it from `public/ind40-logo.png`; the build also requires the Electron binary in `node_modules/electron/dist`.
 - Dashboard loads.
 - Local API responds at `http://127.0.0.1:3764/api/apps`.
 - Patch notes report the expected version.
@@ -85,7 +85,7 @@ On GitHub:
 
 1. Open **Releases**.
 2. Draft a new release.
-3. Create a tag such as `v2.4.1`.
+3. Create a tag such as `v2.5.0`.
 4. Attach `APPDashboard-windows-portable.zip`.
 5. Add a short summary from `patch-notes.json`.
 

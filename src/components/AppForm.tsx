@@ -27,6 +27,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
     args: initialConfig?.args || '',
     port: initialConfig?.port || '',
     cwd: initialConfig?.cwd || '',
+    webLink: initialConfig?.webLink || '',
     dependsOn: initialConfig?.dependsOn?.join(', ') || '',
     shell: initialConfig?.shell !== false,
     advancedEnabled: initialConfig?.advancedEnabled || false,
@@ -38,6 +39,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
   });
 
   const advancedLocked = isEditing;
+  const shouldShowAdvancedSection = !isEditing || Boolean(initialConfig?.advancedEnabled);
   const advancedDisabled = advancedLocked || !formData.advancedEnabled;
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,6 +51,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
       args: formData.args.trim(),
       port: formData.port.trim(),
       cwd: formData.cwd.trim(),
+      webLink: formData.webLink.trim(),
       dependsOn: splitList(formData.dependsOn),
       shell: formData.shell,
     };
@@ -160,6 +163,18 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
                 </label>
 
                 <label className="block">
+                  <span className="mb-1 block text-xs font-bold text-gray-400">{t.form.webLink}</span>
+                  <input
+                    type="text"
+                    className={`${fieldClass} font-mono`}
+                    placeholder={t.form.webLinkPlaceholder}
+                    value={formData.webLink}
+                    onChange={e => setFormData({ ...formData, webLink: e.target.value })}
+                  />
+                  <span className="mt-1 block text-xs font-medium text-gray-400">{t.form.webLinkHelp}</span>
+                </label>
+
+                <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-400">{t.form.dependencies}</span>
                   <input
                     type="text"
@@ -183,6 +198,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
             )}
           </section>
 
+          {shouldShowAdvancedSection && (
           <section className={`border-b border-gray-200 ${isAdvancedOpen ? 'border-l-4 border-l-blue-500' : ''}`}>
             <button
               type="button"
@@ -270,6 +286,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
               </div>
             )}
           </section>
+          )}
         </div>
 
         <div className="flex shrink-0 justify-end gap-4 border-t border-gray-200 px-5 py-4">

@@ -5,6 +5,7 @@ export interface AppConfig {
   args: string;
   port: string;
   cwd: string;
+  webLink?: string;
   dependsOn?: string[];
   shell?: boolean;
   enabled?: boolean;
@@ -21,8 +22,11 @@ export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about';
 export type SettingsTab = 'apps' | 'logs' | 'general' | 'style';
 
 export type ThemeMode = 'light' | 'dark';
+export type DashboardLayout = 'cards' | 'list';
+export type HomepageMode = 'internal' | 'custom';
 
 export interface ProgramSettings {
+  homepageMode: HomepageMode;
   homepageUrl: string;
   aiProvider: 'openai' | 'gemini' | 'anthropic' | 'openai-compatible';
   aiModel: string;
@@ -30,6 +34,7 @@ export interface ProgramSettings {
   aiApiKeySet: boolean;
   themeMode: ThemeMode;
   accentColor: string;
+  dashboardLayout: DashboardLayout;
 }
 
 export interface ChatMessage {

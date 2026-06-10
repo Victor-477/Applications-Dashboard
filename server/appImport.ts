@@ -37,6 +37,7 @@ export function normalizeImportedApp(raw: any, index: number, usedIds: Set<strin
     args: normalizeText(raw?.args),
     port: normalizeText(raw?.port),
     cwd: normalizeText(raw?.cwd),
+    webLink: normalizeText(raw?.webLink),
     dependsOn: normalizeStringList(raw?.dependsOn),
     shell: raw?.shell !== false,
     enabled: raw?.enabled !== false,

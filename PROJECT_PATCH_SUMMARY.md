@@ -4,9 +4,24 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.4.1
-- Date: 2026-05-28
-- Main area: expanded language support before the 2.5.0 release.
+- Version: 2.5.0
+- Date: 2026-06-09
+- Main area: dashboard layout modes, internal HomePage template serving, per-instance web links, and cleaner instance actions.
+
+## 2.5.0
+
+- Added a Style setting to switch the home page instance presentation between card and list layouts.
+- Added an internal HomePage route served by the application server so a local page can open without external Apache.
+- Rebuilt the internal HomePage as an explanatory template that shows live instance status and follows the chosen layout, theme, and accent color.
+- Added uploading, previewing, and resetting a custom HomePage template page served by the internal server.
+- Added General settings to choose between the internal HomePage server and a custom HomePage URL.
+- Added an optional per-instance web link so the link icon can open a custom URL instead of the local port.
+- Hid the instance web-link action when no port or web link is configured.
+- Hid advanced instance settings while editing instances created without advanced mode enabled.
+- Clarified that saving settings applies both the General and Style tabs.
+- Restored the portable executable export by pinning Electron to the working 33.4.11 build and guarding the packaging script with clear preflight checks.
+- Fixed the portable executable icon embedding by using the bundled 7za, searching the local builder cache for rcedit, and tolerating the non-fatal winCodeSign symlink extraction errors.
+- Updated application versioning to 2.5.0.
 
 ## 2.4.1
 

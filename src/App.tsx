@@ -8,6 +8,7 @@ import { ChevronDown, FileText, Globe2, Home, Info, Layers, MessageSquare, Plus,
 import AboutView from './components/AboutView';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
+import AppListItem from './components/AppListItem';
 import AIChatView from './components/AIChatView';
 import LogViewer from './components/LogViewer';
 import PatchFilesView from './components/PatchFilesView';
@@ -54,6 +55,7 @@ function getReadableAccentColor(color: string) {
 }
 
 const defaultProgramSettings: ProgramSettings = {
+  homepageMode: 'internal',
   homepageUrl: 'http://localhost',
   aiProvider: 'openai',
   aiModel: 'gpt-4o-mini',
@@ -61,6 +63,7 @@ const defaultProgramSettings: ProgramSettings = {
   aiApiKeySet: false,
   themeMode: 'light',
   accentColor: '#009dea',
+  dashboardLayout: 'cards',
 };
 
 export default function App() {
@@ -292,6 +295,11 @@ export default function App() {
   };
 
   const openHomePage = async () => {
+    if (programSettings.homepageMode === 'internal') {
+      window.open(new URL('/internal-homepage', window.location.origin).toString(), '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     if (programSettings.homepageUrl) {
       window.open(programSettings.homepageUrl, '_blank', 'noopener,noreferrer');
       return;
@@ -460,21 +468,39 @@ export default function App() {
                 </div>
 
                 {apps.length > 0 ? (
-                  <div className={`grid gap-6 pb-8 ${hasSidePanelOpen ? 'grid-cols-[repeat(auto-fit,minmax(240px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(258px,1fr))]'}`}>
-                    {apps.map(app => (
-                      <AppCard
-                        key={app.config.id}
-                        app={app}
-                        hasError={(logs[app.config.id] || []).some(log => log.type === 'error')}
-                        isSelected={selectedAppId === app.config.id}
-                        onSelect={() => setSelectedAppId(app.config.id)}
-                        onStart={() => handleStart(app.config.id)}
-                        onStop={() => handleStop(app.config.id)}
-                        onEdit={() => openEditForm(app.config)}
-                        t={t}
-                      />
-                    ))}
-                  </div>
+                  programSettings.dashboardLayout === 'list' ? (
+                    <div className="space-y-3 pb-8">
+                      {apps.map(app => (
+                        <AppListItem
+                          key={app.config.id}
+                          app={app}
+                          hasError={(logs[app.config.id] || []).some(log => log.type === 'error')}
+                          isSelected={selectedAppId === app.config.id}
+                          onSelect={() => setSelectedAppId(app.config.id)}
+                          onStart={() => handleStart(app.config.id)}
+                          onStop={() => handleStop(app.config.id)}
+                          onEdit={() => openEditForm(app.config)}
+                          t={t}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className={`grid gap-6 pb-8 ${hasSidePanelOpen ? 'grid-cols-[repeat(auto-fit,minmax(240px,1fr))]' : 'grid-cols-[repeat(auto-fill,minmax(258px,1fr))]'}`}>
+                      {apps.map(app => (
+                        <AppCard
+                          key={app.config.id}
+                          app={app}
+                          hasError={(logs[app.config.id] || []).some(log => log.type === 'error')}
+                          isSelected={selectedAppId === app.config.id}
+                          onSelect={() => setSelectedAppId(app.config.id)}
+                          onStart={() => handleStart(app.config.id)}
+                          onStop={() => handleStop(app.config.id)}
+                          onEdit={() => openEditForm(app.config)}
+                          t={t}
+                        />
+                      ))}
+                    </div>
+                  )
                 ) : (
                   <div className="flex min-h-[360px] flex-col items-center justify-center rounded-md border border-dashed border-gray-300 bg-white/70 px-6 text-center">
                     <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 shadow-sm">
@@ -511,7 +537,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.4.1 - Made By Victor Samuel</span>
+        <span>Control Panel - Applications Dashboard v2.5.0 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

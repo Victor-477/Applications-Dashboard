@@ -2,7 +2,7 @@
 
 Applications Dashboard is a Windows desktop control panel for running local applications, services, and terminal commands from one interface.
 
-Current documented version: **2.4.1**.
+Current documented version: **2.5.0**.
 
 The project is designed for development and operation environments where databases, APIs, frontends, Node-RED flows, worker processes, and support tools need to be started, monitored, stopped, and documented with less friction.
 
@@ -11,12 +11,15 @@ The project is designed for development and operation environments where databas
 - Registers local applications as reusable service cards.
 - Starts and stops commands from the dashboard.
 - Shows process status and live terminal logs.
+- Switches the dashboard between a card layout and a compact list layout.
+- Opens each instance through its detected port or an optional custom web link.
 - Supports dependencies between instances.
 - Allows instance import/export through JSON backups.
 - Keeps system logs with CSV, TXT, JSON, NDJSON, and LOG export formats.
+- Serves an internal HomePage from the application itself, with no external Apache, and lets you replace it with an uploaded template or a custom URL.
 - Provides Settings, AI Chat, Patch Files, About, and HomePage shortcuts.
 - Supports English as the primary language, plus Portuguese, Chinese, German, Spanish, and Japanese.
-- Packages as a portable Windows Electron application.
+- Packages as a portable Windows Electron application with an embedded application icon.
 
 ## Screenshots
 
@@ -116,15 +119,17 @@ npm run package:win:full
 `-- package.json
 ```
 
+Local-only files generated at runtime are kept out of Git: `settings.json` (program preferences and API key) and `homepage.html` (an uploaded custom HomePage template).
+
 ## Latest Validation
 
-The 2.4.1 documentation update was validated with:
+The 2.5.0 update was validated with:
 
 ```bash
 npm run lint
 npm run build
 npx electron scripts\verify-i18n.cjs
-npx electron scripts\capture-readme-screenshots.cjs
+npm run package:win:full
 ```
 
-The i18n validation checked English, Portuguese, Chinese, German, Spanish, and Japanese.
+This covered TypeScript checks, the production build, the i18n smoke test (English, Portuguese, Chinese, German, Spanish, and Japanese), and the portable executable export, including the embedded application icon and an internal-server smoke test at `http://127.0.0.1:3764`.

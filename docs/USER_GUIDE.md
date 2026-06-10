@@ -6,17 +6,24 @@ This guide explains the visible parts of Applications Dashboard and the main wor
 
 ![Dashboard overview](images/dashboard-overview.png)
 
-The dashboard is the main page. Each configured instance appears as a card.
+The dashboard is the main page. Each configured instance appears as a card or as a list row, depending on the layout selected in **Settings > Style**.
 
-Each card shows:
+Each instance shows:
 
 - Instance name.
 - Current status.
-- Open HomePage shortcut, when the instance has a port or URL-related action.
+- Open link action, shown **only** when the instance has a detected port or a configured web link. Instances without either (for example a `ping` command) do not show this action.
 - Start or stop action.
 - Edit action.
 
-Clicking a card selects it and opens the terminal/log panel beside the card list when logs are available.
+Clicking an instance selects it and opens the terminal/log panel beside the list when logs are available.
+
+### Layout Modes
+
+The presentation can be switched in **Settings > Style > Instance presentation**:
+
+- **Cards**: large cards with clear status space (default).
+- **List**: a compact row layout for monitoring many instances at once.
 
 ## Creating or Editing an Instance
 
@@ -31,6 +38,7 @@ Basic settings include:
 - Arguments.
 - Port.
 - Working directory.
+- Web link (optional): a custom URL opened by the instance link action. When empty, the link falls back to the detected local port.
 - Dependencies.
 - Shell execution mode.
 
@@ -41,7 +49,7 @@ Advanced settings include:
 - Advanced command and arguments.
 - Advanced shell mode.
 
-Advanced settings must be enabled during creation. They are locked after the instance is created to preserve stability.
+Advanced settings must be enabled during creation. They are locked after the instance is created to preserve stability. When editing an instance that was created without advanced mode, the advanced section is hidden entirely, since it cannot be changed.
 
 ## Language Selector
 
@@ -65,7 +73,7 @@ The selected language is stored locally and is restored when the app is reopened
 The sidebar provides quick access to the main pages:
 
 - **Home**: returns to the service dashboard.
-- **HomePage**: opens the configured HomePage URL in the user's browser.
+- **HomePage**: opens the HomePage in the user's browser. Depending on the General settings, this is either the internal page served by the application or a custom URL.
 - **AI Chat**: opens the local AI chat page.
 - **Patch Files**: shows version notes and Git commit details.
 - **Settings**: opens system and instance settings.
@@ -79,12 +87,19 @@ The sidebar provides quick access to the main pages:
 
 The General tab is divided into categories:
 
-- **HomePage**: URL opened by the HomePage sidebar button.
+- **HomePage**: chooses how the HomePage sidebar button behaves.
+  - **Internal server**: opens the page served by the application itself, without an external Apache server.
+  - **Custom URL**: opens an address typed by the user (the URL field is enabled only in this mode).
+  - **Template page** (internal mode only): shows whether the default template or an uploaded page is in use, and provides actions to **Upload** a custom HTML page, **Preview** the current page, and **Reset to default**.
 - **AI Chat**: provider, model, base URL, and API key.
 - **Instance settings**: JSON import and backup download.
 - **System overview**: total, visible, and disabled instances.
 
 API keys are saved only in local settings and are not sent to the browser.
+
+The internal HomePage explains how the dashboard works and lists the configured instances with their live status, following the selected layout, theme, and accent color. An uploaded template replaces it entirely and is served exactly as provided.
+
+Saving on either the General or the Style tab persists all program settings together.
 
 ### Style Settings
 
@@ -92,6 +107,7 @@ API keys are saved only in local settings and are not sent to the browser.
 
 The Style tab controls:
 
+- Instance presentation: card layout or list layout on the dashboard.
 - Light or dark theme.
 - Accent color presets.
 - Custom accent color using a six-character hexadecimal color code.

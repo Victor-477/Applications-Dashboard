@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Moon, Palette, Pencil, RefreshCw, Settings, Sun, Trash2, Upload } from 'lucide-react';
+import { Download, Globe2, LayoutGrid, List, Moon, Palette, Pencil, RefreshCw, Server, Settings, Sun, Trash2, Upload } from 'lucide-react';
 import ImportInstancesDialog from './settings/ImportInstancesDialog';
 import LogsExportDialog, { type ExportFormat } from './settings/LogsExportDialog';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -41,6 +41,7 @@ export default function SettingsView({
   const [isLoading, setIsLoading] = useState(false);
   const [programSettings, setProgramSettings] = useState<ProgramSettings | null>(null);
   const [settingsForm, setSettingsForm] = useState({
+    homepageMode: currentProgramSettings.homepageMode,
     homepageUrl: 'http://localhost',
     aiProvider: 'openai',
     aiModel: 'gpt-4o-mini',
@@ -48,6 +49,7 @@ export default function SettingsView({
     aiApiKey: '',
     themeMode: currentProgramSettings.themeMode,
     accentColor: currentProgramSettings.accentColor,
+    dashboardLayout: currentProgramSettings.dashboardLayout,
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -64,6 +66,8 @@ export default function SettingsView({
   const [instanceImportError, setInstanceImportError] = useState('');
   const [showCustomColorInput, setShowCustomColorInput] = useState(false);
   const [customColorDraft, setCustomColorDraft] = useState(currentProgramSettings.accentColor.replace('#', ''));
+  const [homepageTemplateCustom, setHomepageTemplateCustom] = useState(false);
+  const [homepageTemplateError, setHomepageTemplateError] = useState('');
 
   const summary = useMemo(() => {
     return apps.reduce(
@@ -90,8 +94,16 @@ export default function SettingsView({
       const settings = await settingsRes.json();
       setProgramSettings(settings);
       onProgramSettingsChanged(settings);
+      try {
+        const templateRes = await fetch('/api/homepage-template');
+        const templateState = await templateRes.json();
+        setHomepageTemplateCustom(Boolean(templateState.custom));
+      } catch {
+        setHomepageTemplateCustom(false);
+      }
       setSettingsForm(prev => ({
         ...prev,
+        homepageMode: settings.homepageMode || 'internal',
         homepageUrl: settings.homepageUrl || 'http://localhost',
         aiProvider: settings.aiProvider || 'openai',
         aiModel: settings.aiModel || 'gpt-4o-mini',
@@ -99,6 +111,7 @@ export default function SettingsView({
         aiApiKey: '',
         themeMode: settings.themeMode || 'light',
         accentColor: settings.accentColor || '#009dea',
+        dashboardLayout: settings.dashboardLayout || 'cards',
       }));
     } finally {
       setIsLoading(false);
@@ -116,11 +129,18 @@ export default function SettingsView({
   useEffect(() => {
     setSettingsForm(prev => ({
       ...prev,
+      homepageMode: currentProgramSettings.homepageMode,
       themeMode: currentProgramSettings.themeMode,
       accentColor: currentProgramSettings.accentColor,
+      dashboardLayout: currentProgramSettings.dashboardLayout,
     }));
     setCustomColorDraft(currentProgramSettings.accentColor.replace('#', ''));
-  }, [currentProgramSettings.themeMode, currentProgramSettings.accentColor]);
+  }, [
+    currentProgramSettings.homepageMode,
+    currentProgramSettings.themeMode,
+    currentProgramSettings.accentColor,
+    currentProgramSettings.dashboardLayout,
+  ]);
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'apps', label: t.settings.enableApps },
@@ -266,6 +286,41 @@ export default function SettingsView({
     await persistProgramSettings();
   };
 
+  const handleHomepageTemplateUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setHomepageTemplateError('');
+    try {
+      const html = await file.text();
+      const response = await fetch('/api/homepage-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ html }),
+      });
+      if (!response.ok) throw new Error('upload failed');
+      const result = await response.json();
+      setHomepageTemplateCustom(Boolean(result.custom));
+    } catch {
+      setHomepageTemplateError(t.settings.homepageUploadError);
+    }
+  };
+
+  const handleHomepageTemplateReset = async () => {
+    setHomepageTemplateError('');
+    try {
+      const response = await fetch('/api/homepage-template', { method: 'DELETE' });
+      const result = await response.json();
+      setHomepageTemplateCustom(Boolean(result.custom));
+    } catch {
+      setHomepageTemplateError(t.settings.homepageUploadError);
+    }
+  };
+
+  const handleHomepagePreview = () => {
+    window.open('/internal-homepage', '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="mb-6 flex items-center justify-between">
@@ -398,16 +453,93 @@ export default function SettingsView({
                   <h3 className="text-sm font-bold text-gray-900">{t.settings.homepageCategory}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t.settings.homepageCategoryDescription}</p>
                 </div>
-                <div className="px-5 py-5">
+                <div className="space-y-5 px-5 py-5">
+                  <div>
+                    <span className="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.homepageMode}</span>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, homepageMode: 'internal' })}
+                        className={`flex items-start gap-3 border px-4 py-4 text-left transition-colors ${
+                          settingsForm.homepageMode === 'internal'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Server className="mt-0.5 h-5 w-5 shrink-0" />
+                        <span>
+                          <span className="block text-sm font-bold">{t.settings.homepageInternal}</span>
+                          <span className="mt-1 block text-xs font-medium text-gray-500">{t.settings.homepageInternalDescription}</span>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, homepageMode: 'custom' })}
+                        className={`flex items-start gap-3 border px-4 py-4 text-left transition-colors ${
+                          settingsForm.homepageMode === 'custom'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Globe2 className="mt-0.5 h-5 w-5 shrink-0" />
+                        <span>
+                          <span className="block text-sm font-bold">{t.settings.homepageCustom}</span>
+                          <span className="mt-1 block text-xs font-medium text-gray-500">{t.settings.homepageCustomDescription}</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.homepageUrl}</span>
                     <input
                       value={settingsForm.homepageUrl}
                       onChange={event => setSettingsForm({ ...settingsForm, homepageUrl: event.target.value })}
                       placeholder={t.settings.homepageUrlPlaceholder}
-                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      disabled={settingsForm.homepageMode === 'internal'}
+                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
                     />
                   </label>
+
+                  {settingsForm.homepageMode === 'internal' && (
+                    <div className="border border-gray-200 bg-gray-50 px-4 py-4">
+                      <span className="block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.homepageTemplate}</span>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.homepageTemplateDescription}</p>
+                      <div className="mt-3 flex items-center gap-2 text-sm font-semibold">
+                        <span className={`h-2.5 w-2.5 rounded-full ${homepageTemplateCustom ? 'bg-blue-500' : 'bg-gray-400'}`} />
+                        <span className="text-gray-700">
+                          {homepageTemplateCustom ? t.settings.homepageTemplateCustomBadge : t.settings.homepageTemplateDefaultBadge}
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <label className="flex cursor-pointer items-center gap-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+                          <Upload className="h-4 w-4" />
+                          {t.settings.homepageUpload}
+                          <input type="file" accept=".html,text/html" className="hidden" onChange={handleHomepageTemplateUpload} />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleHomepagePreview}
+                          className="flex items-center gap-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+                        >
+                          <Globe2 className="h-4 w-4" />
+                          {t.settings.homepagePreview}
+                        </button>
+                        {homepageTemplateCustom && (
+                          <button
+                            type="button"
+                            onClick={handleHomepageTemplateReset}
+                            className="flex items-center gap-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {t.settings.homepageReset}
+                          </button>
+                        )}
+                      </div>
+                      {homepageTemplateError && <p className="mt-2 text-sm font-semibold text-red-600">{homepageTemplateError}</p>}
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -515,11 +647,14 @@ export default function SettingsView({
                 </div>
               </section>
 
-              <div className="flex items-center gap-3 border border-gray-200 bg-white px-5 py-4">
-                <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
-                  {t.settings.saveSettings}
-                </button>
-                {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
+              <div className="border border-gray-200 bg-white px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700">
+                    {t.settings.saveSettings}
+                  </button>
+                  {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
+                </div>
+                <p className="mt-2 text-xs font-medium text-gray-500">{t.settings.saveSettingsHelp}</p>
               </div>
             </form>
 
@@ -550,7 +685,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.4.1</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.5.0</p>
                   </div>
                 </div>
               </section>
@@ -568,6 +703,44 @@ export default function SettingsView({
                 </div>
 
                 <div className="space-y-6 px-5 py-5">
+                  <div>
+                    <span className="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.dashboardLayout}</span>
+                    <p className="mb-3 text-xs font-medium text-gray-500">{t.settings.dashboardLayoutDescription}</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, dashboardLayout: 'cards' })}
+                        className={`flex items-start gap-3 border px-4 py-4 text-left transition-colors ${
+                          settingsForm.dashboardLayout === 'cards'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <LayoutGrid className="mt-0.5 h-5 w-5 shrink-0" />
+                        <span>
+                          <span className="block text-sm font-bold">{t.settings.cardLayout}</span>
+                          <span className="mt-1 block text-xs font-medium text-gray-500">{t.settings.cardLayoutDescription}</span>
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSettingsForm({ ...settingsForm, dashboardLayout: 'list' })}
+                        className={`flex items-start gap-3 border px-4 py-4 text-left transition-colors ${
+                          settingsForm.dashboardLayout === 'list'
+                            ? 'border-blue-500 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <List className="mt-0.5 h-5 w-5 shrink-0" />
+                        <span>
+                          <span className="block text-sm font-bold">{t.settings.listLayout}</span>
+                          <span className="mt-1 block text-xs font-medium text-gray-500">{t.settings.listLayoutDescription}</span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <span className="mb-3 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.themeMode}</span>
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -660,15 +833,18 @@ export default function SettingsView({
                     <p className="mt-3 text-xs font-medium text-gray-500">{t.settings.accentColorDescription}</p>
                   </div>
 
-                  <div className="flex items-center gap-3 border-t border-gray-200 pt-5">
-                    <button
-                      type="button"
-                      onClick={persistProgramSettings}
-                      className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                    >
-                      {t.settings.saveSettings}
-                    </button>
-                    {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
+                  <div className="border-t border-gray-200 pt-5">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={persistProgramSettings}
+                        className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                      >
+                        {t.settings.saveSettings}
+                      </button>
+                      {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
+                    </div>
+                    <p className="mt-2 text-xs font-medium text-gray-500">{t.settings.saveSettingsHelp}</p>
                   </div>
                 </div>
               </div>

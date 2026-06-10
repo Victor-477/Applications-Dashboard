@@ -2,7 +2,7 @@
 
 Applications Dashboard stores local instance configuration in `apps.json` and program preferences in `settings.json`.
 
-`settings.json` is ignored by Git because it can contain local preferences and API key configuration.
+`settings.json` is ignored by Git because it can contain local preferences and API key configuration. An uploaded HomePage template is stored as `homepage.html` and is also ignored by Git.
 
 ## Instance Configuration
 
@@ -19,6 +19,7 @@ Example:
     "args": "run dev",
     "port": "3000",
     "cwd": "../backend",
+    "webLink": "",
     "dependsOn": [],
     "shell": true,
     "enabled": true,
@@ -37,6 +38,7 @@ Example:
 | `args` | No | Arguments passed to the command. |
 | `port` | No | Port used for status detection and duplicate prevention. |
 | `cwd` | No | Working directory. Empty means the dashboard folder. |
+| `webLink` | No | Custom URL opened by the instance link action. When empty, the link falls back to `http://127.0.0.1:<port>`. With neither a web link nor a port, no link action is shown. |
 | `dependsOn` | No | Array of instance IDs that should start first. |
 | `shell` | No | `true` runs through the Windows shell. `false` runs the executable directly. |
 | `enabled` | No | `false` hides the instance from the main dashboard. |
@@ -173,10 +175,18 @@ Common fields:
 
 | Field | Description |
 | --- | --- |
-| `homepageUrl` | URL opened by the HomePage sidebar button. |
+| `homepageMode` | `internal` serves the application's own HomePage; `custom` opens `homepageUrl`. |
+| `homepageUrl` | URL opened by the HomePage sidebar button when `homepageMode` is `custom`. |
 | `aiProvider` | `openai`, `gemini`, `anthropic`, or `openai-compatible`. |
 | `aiModel` | Model name used by AI Chat. |
 | `aiBaseUrl` | Custom base URL for OpenAI-compatible providers. |
 | `aiApiKey` | Local API key. It is not exposed to the browser. |
 | `themeMode` | `light` or `dark`. |
 | `accentColor` | Six-digit hex color with `#`, such as `#009dea`. |
+| `dashboardLayout` | `cards` or `list`, controlling how instances are presented on the dashboard. |
+
+## Internal HomePage
+
+When `homepageMode` is `internal`, the HomePage button opens a page served by the application at `/internal-homepage`. By default this is a generated template that explains the dashboard and lists instances with live status, following the selected layout, theme, and accent color.
+
+Uploading a custom page (Settings > General > HomePage > Template page) stores it as `homepage.html` and serves it exactly as provided. Resetting removes that file and restores the default template.
