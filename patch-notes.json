@@ -4,17 +4,12 @@
     "date": "2026-06-09",
     "title": "Dashboard layout modes and internal HomePage server",
     "changes": [
-      "Added a Style setting to switch the home page instance presentation between cards and list view.",
-      "Added an internal HomePage route served by the application so users can open a local web page without an external Apache server.",
-      "Added General settings to choose between the internal HomePage server and a custom HomePage URL.",
-      "Rebuilt the internal HomePage as an explanatory template that shows live instance status and follows the cards or list layout, theme, and accent color.",
-      "Added support for uploading a custom HomePage template page, previewing it, and resetting back to the default.",
-      "Added an optional per-instance web link so the instance link icon can open a custom URL instead of the local port.",
-      "Hid instance web-link actions when no port or web link is configured for the instance.",
-      "Hid advanced instance settings while editing instances that were created without advanced mode enabled.",
-      "Clarified that saving settings applies both the General and Style tabs.",
-      "Restored the portable executable export by pinning Electron to the working 33.4.11 build and adding clear preflight checks to the packaging script.",
-      "Fixed the portable executable icon embedding so the project cube icon is applied without requiring 7za on the system PATH or administrator privileges.",
+      "Dashboard layout modes: present instances as large cards or as a compact list.",
+      "Internal HomePage served by the application, with no external Apache, showing live instance status and following the selected layout, theme, and accent color.",
+      "Replaceable HomePage: keep the built-in template, upload a custom HTML page, or point to a custom URL.",
+      "Optional custom web link per instance, with the link action hidden when no port or web link is set.",
+      "Advanced instance settings stay hidden when editing instances that never enabled them.",
+      "More reliable portable executable export with a correctly embedded application icon.",
       "Updated application versioning to 2.5.0."
     ]
   },
