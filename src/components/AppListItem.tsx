@@ -13,6 +13,10 @@ interface AppListItemProps {
   t: Translation;
 }
 
+/**
+ * Compact single-row representation of an instance, used when the dashboard
+ * layout is set to "list" (the card equivalent is AppCard).
+ */
 export default function AppListItem({ app, hasError, isSelected, onSelect, onStart, onStop, onEdit, t }: AppListItemProps) {
   const isRunning = app.status === 'running';
   const statusTone = isRunning ? 'bg-[#62b43d]' : hasError ? 'bg-[#d60000]' : 'bg-gray-400';

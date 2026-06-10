@@ -18,10 +18,12 @@ export function normalizeThemeMode(value: unknown): 'light' | 'dark' {
   return value === 'dark' ? 'dark' : 'light';
 }
 
+/** HomePage source: the panel's own internal page, or a user-provided URL. Defaults to internal. */
 export function normalizeHomepageMode(value: unknown): 'internal' | 'custom' {
   return value === 'custom' ? 'custom' : 'internal';
 }
 
+/** Dashboard instance presentation: large cards or a compact list. Defaults to cards. */
 export function normalizeDashboardLayout(value: unknown): 'cards' | 'list' {
   return value === 'list' ? 'list' : 'cards';
 }

@@ -39,6 +39,8 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
   });
 
   const advancedLocked = isEditing;
+  // Advanced settings are chosen at creation and locked afterwards, so when
+  // editing an instance that never enabled them, hide the section entirely.
   const shouldShowAdvancedSection = !isEditing || Boolean(initialConfig?.advancedEnabled);
   const advancedDisabled = advancedLocked || !formData.advancedEnabled;
 

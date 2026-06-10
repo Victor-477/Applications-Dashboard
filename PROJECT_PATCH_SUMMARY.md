@@ -10,17 +10,17 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## 2.5.0
 
-- Added a Style setting to switch the home page instance presentation between card and list layouts.
-- Added an internal HomePage route served by the application server so a local page can open without external Apache.
-- Rebuilt the internal HomePage as an explanatory template that shows live instance status and follows the chosen layout, theme, and accent color.
-- Added uploading, previewing, and resetting a custom HomePage template page served by the internal server.
+- Added a Style setting to switch the home page instance presentation between cards and list view.
+- Added an internal HomePage route served by the application so users can open a local web page without an external Apache server.
 - Added General settings to choose between the internal HomePage server and a custom HomePage URL.
-- Added an optional per-instance web link so the link icon can open a custom URL instead of the local port.
-- Hid the instance web-link action when no port or web link is configured.
-- Hid advanced instance settings while editing instances created without advanced mode enabled.
+- Rebuilt the internal HomePage as an explanatory template that shows live instance status and follows the cards or list layout, theme, and accent color.
+- Added support for uploading a custom HomePage template page, previewing it, and resetting back to the default.
+- Added an optional per-instance web link so the instance link icon can open a custom URL instead of the local port.
+- Hid instance web-link actions when no port or web link is configured for the instance.
+- Hid advanced instance settings while editing instances that were created without advanced mode enabled.
 - Clarified that saving settings applies both the General and Style tabs.
-- Restored the portable executable export by pinning Electron to the working 33.4.11 build and guarding the packaging script with clear preflight checks.
-- Fixed the portable executable icon embedding by using the bundled 7za, searching the local builder cache for rcedit, and tolerating the non-fatal winCodeSign symlink extraction errors.
+- Restored the portable executable export by pinning Electron to the working 33.4.11 build and adding clear preflight checks to the packaging script.
+- Fixed the portable executable icon embedding so the project cube icon is applied without requiring 7za on the system PATH or administrator privileges.
 - Updated application versioning to 2.5.0.
 
 ## 2.4.1
@@ -114,11 +114,14 @@ This file summarizes the main project changes so future GitHub commits can be pr
 - `server/`: backend modules for defaults, import validation, settings normalization, log export, file reads, and patch note parsing.
 - `src/App.tsx`: main layout, sidebar navigation, and footer.
 - `src/components/SettingsView.tsx`: settings tabs, logs, and general tools.
+- `src/components/AppCard.tsx` and `src/components/AppListItem.tsx`: card and list dashboard presentations.
 - `src/components/settings/`: smaller Settings dialog components.
 - `src/i18n/patchTextTranslations.ts`: translated patch note text entries.
 - `src/components/PatchFilesView.tsx`: version notes, patch summary, and commit display.
 - `src/i18n.ts`: interface translations.
 - `src/types.ts`: shared frontend/backend contracts.
+- `scripts/package-portable.cjs`: portable Windows packaging and executable icon embedding.
+- `scripts/capture-readme-screenshots.cjs`: documentation screenshot capture.
 
 ## Checklist before committing
 
@@ -127,4 +130,7 @@ This file summarizes the main project changes so future GitHub commits can be pr
 3. Update this file with the new release summary.
 4. Run `npm run lint`.
 5. Run `npm run build`.
-6. Validate `http://127.0.0.1:3000/` when the change affects the UI or API.
+6. Run `npx electron scripts\verify-i18n.cjs` to validate translations across languages.
+7. Regenerate documentation screenshots with `npx electron scripts\capture-readme-screenshots.cjs` when the UI changed.
+8. Run `npm run package:win:full` to validate the portable executable build.
+9. Validate `http://127.0.0.1:3000/` when the change affects the UI or API.

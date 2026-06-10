@@ -127,6 +127,7 @@ function escapeHtml(value: unknown) {
     .replace(/'/g, '&#039;');
 }
 
+/** Returns the uploaded custom HomePage HTML, or null when none is configured. */
 async function readCustomHomepage(): Promise<string | null> {
   try {
     const html = await fs.readFile(HOMEPAGE_TEMPLATE_FILE, 'utf-8');
@@ -136,6 +137,11 @@ async function readCustomHomepage(): Promise<string | null> {
   }
 }
 
+/**
+ * Resolves the address opened by an instance's link action: the explicit web
+ * link when set, otherwise the local port URL, or an empty string when neither
+ * is available (so callers can hide the link action).
+ */
 function instanceWebLink(config: AppConfig, activePort?: string) {
   const link = String(config.webLink || '').trim();
   if (link) return link;
@@ -143,6 +149,7 @@ function instanceWebLink(config: AppConfig, activePort?: string) {
   return port ? `http://127.0.0.1:${port}` : '';
 }
 
+/** Maps the saved theme and accent color to the CSS palette used by the internal HomePage. */
 function homepageTheme(settings: ProgramSettingsFile) {
   const accent = normalizeAccentColor(settings.accentColor);
   if (normalizeThemeMode(settings.themeMode) === 'dark') {
@@ -169,6 +176,12 @@ function homepageTheme(settings: ProgramSettingsFile) {
   };
 }
 
+/**
+ * Builds the default internal HomePage: an explanatory page that lists the
+ * enabled instances with their live status and open links, honoring the
+ * configured dashboard layout, theme, and accent color. Used only when no
+ * custom template has been uploaded.
+ */
 async function renderInternalHomepage(settings: ProgramSettingsFile) {
   const apps = (await getApps()).filter(config => config.enabled !== false);
   const states = await Promise.all(apps.map(async config => {
