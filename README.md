@@ -27,6 +27,14 @@ The project is designed for development and operation environments where databas
 
 ![Dashboard overview](docs/images/dashboard-overview.png)
 
+### List Layout
+
+![Dashboard list layout](docs/images/dashboard-list.png)
+
+### Internal HomePage
+
+![Internal HomePage](docs/images/internal-homepage.png)
+
 ### Instance Form
 
 ![Application form](docs/images/app-form.png)
@@ -129,7 +137,8 @@ The 2.5.0 update was validated with:
 npm run lint
 npm run build
 npx electron scripts\verify-i18n.cjs
+npx electron scripts\capture-readme-screenshots.cjs
 npm run package:win:full
 ```
 
-This covered TypeScript checks, the production build, the i18n smoke test (English, Portuguese, Chinese, German, Spanish, and Japanese), and the portable executable export, including the embedded application icon and an internal-server smoke test at `http://127.0.0.1:3764`.
+This covered TypeScript checks, the production build, the i18n smoke test (English, Portuguese, Chinese, German, Spanish, and Japanese), refreshed documentation screenshots, and the portable executable export, including the embedded application icon and an internal-server smoke test at `http://127.0.0.1:3764`.

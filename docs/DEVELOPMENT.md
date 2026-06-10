@@ -97,7 +97,7 @@ npm run build
 npx electron scripts\capture-readme-screenshots.cjs
 ```
 
-The script saves images to `docs/images/`.
+The script saves images to `docs/images/`, including the dashboard (card and list layouts), the instance form, the settings tabs, the internal HomePage, and the other system pages. It temporarily seeds demo instances only at runtime and does not modify `apps.json`.
 
 ## Generated Files
 

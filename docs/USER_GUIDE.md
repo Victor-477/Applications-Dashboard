@@ -25,6 +25,8 @@ The presentation can be switched in **Settings > Style > Instance presentation**
 - **Cards**: large cards with clear status space (default).
 - **List**: a compact row layout for monitoring many instances at once.
 
+![Dashboard list layout](images/dashboard-list.png)
+
 ## Creating or Editing an Instance
 
 ![Application form](images/app-form.png)
@@ -98,6 +100,8 @@ The General tab is divided into categories:
 API keys are saved only in local settings and are not sent to the browser.
 
 The internal HomePage explains how the dashboard works and lists the configured instances with their live status, following the selected layout, theme, and accent color. An uploaded template replaces it entirely and is served exactly as provided.
+
+![Internal HomePage](images/internal-homepage.png)
 
 Saving on either the General or the Style tab persists all program settings together.
 
