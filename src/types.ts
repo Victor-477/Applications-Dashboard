@@ -17,7 +17,7 @@ export interface AppConfig {
   advancedShell?: boolean;
 }
 
-export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about' | 'apiTester' | 'connectivity';
+export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about' | 'apiTester' | 'connectivity' | 'webServer';
 
 export type SettingsTab = 'apps' | 'logs' | 'general' | 'style' | 'advanced';
 
@@ -40,6 +40,10 @@ export interface ProgramSettings {
   connectivityTesterEnabled: boolean;
   internalApiPort: number;
   internalApiRemoteAccess: boolean;
+  advancedFeaturesEnabled: boolean;
+  webServerEnabled: boolean;
+  webServerPort: number;
+  webServerRootFolder: string;
 }
 
 export interface ChatMessage {

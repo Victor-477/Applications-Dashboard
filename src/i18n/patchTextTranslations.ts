@@ -3,6 +3,11 @@ import type { Language } from '../i18n';
 export const patchTextTranslations: Record<Language, Record<string, string>> = {
   en: {},
   de: {
+    'Mini web server and Advanced Features master toggle': 'Mini-Webserver und Hauptschalter für erweiterte Funktionen',
+    'New Advanced Feature: Mini web server that serves any local folder as a static site on a configurable port.': 'Neue erweiterte Funktion: Mini-Webserver, der beliebige lokale Ordner als statische Website auf einem konfigurierbaren Port bereitstellt.',
+    'New Settings > General master toggle to enable or disable all Advanced Features at once while keeping the individual settings saved.': 'Neuer Hauptschalter unter Einstellungen > Allgemein, um alle erweiterten Funktionen auf einmal zu aktivieren oder zu deaktivieren, wobei die einzelnen Einstellungen erhalten bleiben.',
+    'Backend startup, sidebar, and endpoints for AI Chat, API Tester, Connectivity, and Web Server now honour both the master toggle and each individual feature flag.': 'Der Serverstart, die Seitenleiste und die Endpunkte für KI-Chat, API-Tester, Konnektivität und Webserver berücksichtigen jetzt sowohl den Hauptschalter als auch das individuelle Feature-Flag.',
+    'Updated application versioning to 2.8.0.': 'Die Anwendungsversion wurde auf 2.8.0 aktualisiert.',
     'Configurable internal API': 'Konfigurierbare interne API',
     'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': 'Neuer Bereich Einstellungen > Allgemein > Interne API zum Wählen des HTTP-Ports des Panels und ob andere Geräte im Netzwerk darauf zugreifen dürfen.',
     'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'Der Serverstart berücksichtigt den gespeicherten Port und die Netzwerkrichtlinie, sodass Entwicklungs- und Paketbuilds die Auswahl übernehmen.',
@@ -84,6 +89,11 @@ export const patchTextTranslations: Record<Language, Record<string, string>> = {
     'Validate `http://127.0.0.1:3000/` when the change affects the UI or API.': '`http://127.0.0.1:3000/` validieren, wenn die Änderung UI oder API betrifft.',
   },
   es: {
+    'Mini web server and Advanced Features master toggle': 'Mini servidor web e interruptor general de las Funciones avanzadas',
+    'New Advanced Feature: Mini web server that serves any local folder as a static site on a configurable port.': 'Nueva función avanzada: mini servidor web que publica cualquier carpeta local como sitio estático en un puerto configurable.',
+    'New Settings > General master toggle to enable or disable all Advanced Features at once while keeping the individual settings saved.': 'Nuevo interruptor general en Configuración > General que activa o desactiva todas las Funciones avanzadas a la vez manteniendo la configuración individual guardada.',
+    'Backend startup, sidebar, and endpoints for AI Chat, API Tester, Connectivity, and Web Server now honour both the master toggle and each individual feature flag.': 'El arranque del backend, la barra lateral y los endpoints de Chat de IA, Testeador de API, Conectividad y Servidor web ahora respetan el interruptor general y el toggle individual de cada función.',
+    'Updated application versioning to 2.8.0.': 'Se actualizó el versionamiento de la aplicación a 2.8.0.',
     'Configurable internal API': 'API interna configurable',
     'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': 'Nueva seccion Configuracion > General > API interna para elegir el puerto HTTP del panel y si otros dispositivos de la red pueden acceder.',
     'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'El arranque del servidor respeta el puerto y la politica de red guardados, por lo que los builds de desarrollo y empaquetados siguen la eleccion.',
@@ -165,6 +175,11 @@ export const patchTextTranslations: Record<Language, Record<string, string>> = {
     'Validate `http://127.0.0.1:3000/` when the change affects the UI or API.': 'Validar `http://127.0.0.1:3000/` cuando el cambio afecte la UI o la API.',
   },
   ja: {
+    'Mini web server and Advanced Features master toggle': 'ミニ Web サーバーと高度な機能のマスタースイッチ',
+    'New Advanced Feature: Mini web server that serves any local folder as a static site on a configurable port.': '新しい高度な機能: 任意のローカルフォルダを設定可能なポートで静的サイトとして公開するミニ Web サーバー。',
+    'New Settings > General master toggle to enable or disable all Advanced Features at once while keeping the individual settings saved.': '設定 > 一般 に新しいマスタースイッチを追加し、個別の設定を保持したまますべての高度な機能を一括で有効化・無効化できます。',
+    'Backend startup, sidebar, and endpoints for AI Chat, API Tester, Connectivity, and Web Server now honour both the master toggle and each individual feature flag.': 'サーバーの起動、サイドバー、AI チャット・API テスター・接続・Web サーバーのエンドポイントは、マスタースイッチと各機能個別のフラグの両方を尊重するようになりました。',
+    'Updated application versioning to 2.8.0.': 'アプリケーションのバージョンを 2.8.0 に更新しました。',
     'Configurable internal API': '設定可能な内部 API',
     'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': '設定 > 一般 > 内部 API セクションを追加し、パネルの HTTP ポートとネットワーク上の他デバイスからのアクセス可否を選択できるようにしました。',
     'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'サーバーの起動処理が保存されたポートとネットワーク方針を尊重するため、開発ビルドとパッケージビルドの両方で設定が反映されます。',
@@ -246,6 +261,11 @@ export const patchTextTranslations: Record<Language, Record<string, string>> = {
     'Validate `http://127.0.0.1:3000/` when the change affects the UI or API.': '変更が UI または API に影響する場合は `http://127.0.0.1:3000/` を検証する。',
   },
   pt: {
+    'Mini web server and Advanced Features master toggle': 'Mini servidor web e interruptor geral dos Recursos avancados',
+    'New Advanced Feature: Mini web server that serves any local folder as a static site on a configurable port.': 'Novo recurso avancado: mini servidor web que publica qualquer pasta local como site estatico em uma porta configuravel.',
+    'New Settings > General master toggle to enable or disable all Advanced Features at once while keeping the individual settings saved.': 'Novo interruptor geral em Configuracoes > Geral que habilita ou desabilita todos os Recursos avancados de uma vez, mantendo as configuracoes individuais salvas.',
+    'Backend startup, sidebar, and endpoints for AI Chat, API Tester, Connectivity, and Web Server now honour both the master toggle and each individual feature flag.': 'A inicializacao do backend, a barra lateral e os endpoints de AI Chat, Testador de API, Conectividade e Servidor web agora respeitam o interruptor geral e o toggle individual de cada recurso.',
+    'Updated application versioning to 2.8.0.': 'Versionamento da aplicacao atualizado para 2.8.0.',
     'Configurable internal API': 'API interna configuravel',
     'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': 'Nova secao Configuracoes > Geral > API interna para escolher a porta HTTP do painel e se outros dispositivos da rede podem acessa-lo.',
     'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'O startup do backend respeita a porta e a politica de rede salvas, entao builds de desenvolvimento e empacotados seguem a escolha.',

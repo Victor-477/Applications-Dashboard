@@ -36,6 +36,14 @@ export interface ProgramSettingsFile {
   internalApiPort: number;
   /** When true the server binds to 0.0.0.0 (LAN reachable). Otherwise 127.0.0.1. */
   internalApiRemoteAccess: boolean;
+  /** Master switch for every advanced feature. Off hides them all without wiping their saved config. */
+  advancedFeaturesEnabled: boolean;
+  /** Individual toggle for the Apache-style static web server feature. */
+  webServerEnabled: boolean;
+  /** Port used by the static web server when it is running. */
+  webServerPort: number;
+  /** Absolute path of the folder currently served by the static web server. */
+  webServerRootFolder: string;
 }
 
 export interface SystemLogEntry {

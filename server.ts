@@ -10,6 +10,7 @@ import { readJsonFile } from './server/fileUtils';
 import { getPatchNotesPayload } from './server/patchNotes';
 import {
   getDefaultSettings,
+  isFeatureEffectivelyEnabled,
   normalizeAccentColor,
   normalizeDashboardLayout,
   normalizeFeatureFlag,
@@ -794,6 +795,12 @@ app.put('/api/settings', async (req, res) => {
     connectivityTesterEnabled: normalizeFeatureFlag(req.body.connectivityTesterEnabled, current.connectivityTesterEnabled),
     internalApiPort: normalizeInternalApiPort(req.body.internalApiPort, current.internalApiPort),
     internalApiRemoteAccess: normalizeFeatureFlag(req.body.internalApiRemoteAccess, current.internalApiRemoteAccess),
+    advancedFeaturesEnabled: normalizeFeatureFlag(req.body.advancedFeaturesEnabled, current.advancedFeaturesEnabled),
+    webServerEnabled: normalizeFeatureFlag(req.body.webServerEnabled, current.webServerEnabled),
+    webServerPort: normalizeInternalApiPort(req.body.webServerPort, current.webServerPort) || current.webServerPort,
+    webServerRootFolder: typeof req.body.webServerRootFolder === 'string'
+      ? req.body.webServerRootFolder.trim()
+      : current.webServerRootFolder,
   };
 
   await saveSettings(next);
@@ -839,13 +846,110 @@ app.delete('/api/homepage-template', async (req, res) => {
 });
 
 /**
+ * Advanced feature: a mini Apache-style static web server. The user picks a
+ * folder and a port; the server hosts that folder over HTTP so they can preview
+ * local sites without spinning up their own web server. Only one instance runs
+ * at a time; state lives in module scope so start/stop calls are idempotent.
+ */
+let webServerState: {
+  running: boolean;
+  port: number;
+  folder: string;
+  url: string;
+  startedAt: string;
+} = { running: false, port: 0, folder: '', url: '', startedAt: '' };
+let webServerInstance: import('http').Server | undefined;
+
+async function stopWebServer(): Promise<void> {
+  if (!webServerInstance) return;
+  await new Promise<void>((resolve) => {
+    webServerInstance!.close(() => resolve());
+    webServerInstance = undefined;
+  });
+  webServerState = { running: false, port: 0, folder: '', url: '', startedAt: '' };
+}
+
+app.get('/api/web-server/status', (req, res) => {
+  res.json(webServerState);
+});
+
+app.post('/api/web-server/start', async (req, res) => {
+  const settings = await getSettings();
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.webServerEnabled)) {
+    res.status(403).json({ error: 'Web server is disabled in Advanced Features.' });
+    return;
+  }
+
+  const folder = String(req.body?.folder || settings.webServerRootFolder || '').trim();
+  const port = normalizeInternalApiPort(req.body?.port, settings.webServerPort) || settings.webServerPort;
+
+  if (!folder) {
+    res.status(400).json({ error: 'A folder path is required.' });
+    return;
+  }
+  const resolved = path.isAbsolute(folder) ? folder : path.resolve(PANEL_DIR, folder);
+  try {
+    const stats = await fs.stat(resolved);
+    if (!stats.isDirectory()) {
+      res.status(400).json({ error: 'The folder path does not point to a directory.' });
+      return;
+    }
+  } catch {
+    res.status(400).json({ error: `Folder not found: ${resolved}` });
+    return;
+  }
+  if (port === PORT) {
+    res.status(400).json({ error: 'Cannot bind to the panel port.' });
+    return;
+  }
+
+  await stopWebServer();
+
+  const staticApp = express();
+  staticApp.use(express.static(resolved, { fallthrough: true, index: ['index.html', 'index.htm'] }));
+  const url = `http://127.0.0.1:${port}`;
+
+  await new Promise<void>((resolve, reject) => {
+    const server = staticApp.listen(port, '127.0.0.1', () => {
+      webServerInstance = server;
+      webServerState = {
+        running: true,
+        port,
+        folder: resolved,
+        url,
+        startedAt: new Date().toISOString(),
+      };
+      pushSystemLog(`Web server started at ${url} serving ${resolved}`, 'info', 'web-server');
+      resolve();
+    });
+    server.once('error', (error) => {
+      reject(error);
+    });
+  }).catch((error) => {
+    res.status(500).json({ error: `Could not start server: ${(error as any)?.message || error}` });
+  });
+
+  // Persist the chosen folder/port for next start.
+  const current = await getSettings();
+  await saveSettings({ ...current, webServerRootFolder: resolved, webServerPort: port });
+
+  if (!res.headersSent) res.json(webServerState);
+});
+
+app.post('/api/web-server/stop', async (req, res) => {
+  await stopWebServer();
+  pushSystemLog('Web server stopped', 'info', 'web-server');
+  res.json(webServerState);
+});
+
+/**
  * Advanced feature: performs a connectivity probe against a host/port using one
  * of TCP, HTTP(S), or system ping. Used by the Tests and Connectivity page to
  * quickly verify whether a device or service is reachable from this machine.
  */
 app.post('/api/connectivity-test', async (req, res) => {
   const settings = await getSettings();
-  if (!settings.connectivityTesterEnabled) {
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.connectivityTesterEnabled)) {
     res.status(403).json({ error: 'Connectivity Tester is disabled in Advanced Features.' });
     return;
   }
@@ -955,7 +1059,7 @@ app.post('/api/connectivity-test', async (req, res) => {
  */
 app.post('/api/api-tester', async (req, res) => {
   const settings = await getSettings();
-  if (!settings.apiTesterEnabled) {
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.apiTesterEnabled)) {
     res.status(403).json({ error: 'API Tester is disabled in Advanced Features.' });
     return;
   }
@@ -1039,7 +1143,7 @@ app.post('/api/ai-chat', async (req, res) => {
   const settings = await getSettings();
   const messages = clampChatMessages(req.body.messages);
 
-  if (!settings.aiChatEnabled) {
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.aiChatEnabled)) {
     res.status(403).json({ error: 'AI Chat is disabled in Advanced Features.' });
     return;
   }

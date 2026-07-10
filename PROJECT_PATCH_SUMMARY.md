@@ -4,9 +4,18 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.7.0
-- Date: 2026-07-16
-- Main area: configurable internal API port and optional network exposure.
+- Version: 2.8.0
+- Date: 2026-07-23
+- Main area: mini web server advanced feature and master toggle for all advanced features.
+
+## 2.8.0
+
+- Added a **Mini web server** advanced feature that publishes any local folder as a static site on a configurable port (start/stop/status endpoints plus a sidebar page with folder + port + open-in-browser controls).
+- Added an **Advanced Features master toggle** in Settings > General that turns every advanced feature off at once while preserving each individual setting.
+- Every advanced-feature endpoint (`/api/ai-chat`, `/api/api-tester`, `/api/connectivity-test`, `/api/web-server/*`) and its sidebar entry now checks both the master flag and its own toggle.
+- Added `isFeatureEffectivelyEnabled` shared helper in `server/settingsUtils.ts` so backend and frontend agree on when a feature is truly active.
+- Translations in six languages (en, pt, zh, de, es, ja) for the master toggle, the mini web server view, and the new patch notes.
+- Updated application versioning to 2.8.0.
 
 ## 2.7.0
 

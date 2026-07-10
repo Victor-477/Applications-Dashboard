@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, lazy, Suspense, type CSSProperties } from 'react';
-import { ChevronDown, FileText, Globe2, Home, Info, Layers, MessageSquare, Plus, Radar, Settings, Zap } from 'lucide-react';
+import { ChevronDown, FileText, Globe, Globe2, Home, Info, Layers, MessageSquare, Plus, Radar, Settings, Zap } from 'lucide-react';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import AppListItem from './components/AppListItem';
@@ -16,6 +16,7 @@ const AboutView = lazy(() => import('./components/AboutView'));
 const AIChatView = lazy(() => import('./components/AIChatView'));
 const ApiTesterView = lazy(() => import('./components/ApiTesterView'));
 const ConnectivityTesterView = lazy(() => import('./components/ConnectivityTesterView'));
+const WebServerView = lazy(() => import('./components/WebServerView'));
 const PatchFilesView = lazy(() => import('./components/PatchFilesView'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
 import type { AppState, AppConfig, AppView, LogLine, ProgramSettings, SettingsTab } from './types';
@@ -74,6 +75,10 @@ const defaultProgramSettings: ProgramSettings = {
   connectivityTesterEnabled: false,
   internalApiPort: 0,
   internalApiRemoteAccess: false,
+  advancedFeaturesEnabled: true,
+  webServerEnabled: false,
+  webServerPort: 8080,
+  webServerRootFolder: '',
 };
 
 export default function App() {
@@ -102,10 +107,15 @@ export default function App() {
   // Redirect away from a feature view whose feature was just disabled, so the
   // user cannot end up on a hidden page (e.g. AI Chat while aiChatEnabled=false).
   useEffect(() => {
-    if (currentView === 'ai' && !programSettings.aiChatEnabled) setCurrentView('services');
-    if (currentView === 'apiTester' && !programSettings.apiTesterEnabled) setCurrentView('services');
-    if (currentView === 'connectivity' && !programSettings.connectivityTesterEnabled) setCurrentView('services');
-  }, [currentView, programSettings.aiChatEnabled, programSettings.apiTesterEnabled, programSettings.connectivityTesterEnabled]);
+    // A feature is only really on when both the master toggle AND its
+    // individual toggle are enabled. Any advanced view whose feature falls to
+    // "off" gets bumped back to the services page.
+    const master = programSettings.advancedFeaturesEnabled;
+    if (currentView === 'ai' && !(master && programSettings.aiChatEnabled)) setCurrentView('services');
+    if (currentView === 'apiTester' && !(master && programSettings.apiTesterEnabled)) setCurrentView('services');
+    if (currentView === 'connectivity' && !(master && programSettings.connectivityTesterEnabled)) setCurrentView('services');
+    if (currentView === 'webServer' && !(master && programSettings.webServerEnabled)) setCurrentView('services');
+  }, [currentView, programSettings.advancedFeaturesEnabled, programSettings.aiChatEnabled, programSettings.apiTesterEnabled, programSettings.connectivityTesterEnabled, programSettings.webServerEnabled]);
 
   const themeVars = useMemo<CSSProperties>(() => ({
     '--app-accent': programSettings.accentColor,
@@ -312,6 +322,13 @@ export default function App() {
     setEditingApp(null);
   };
 
+  const openWebServerView = () => {
+    setCurrentView('webServer');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
   const openPatchFilesView = () => {
     setCurrentView('patches');
     setSelectedAppId(null);
@@ -425,7 +442,7 @@ export default function App() {
             >
               <Globe2 className="h-5 w-5" />
             </button>
-            {programSettings.aiChatEnabled && (
+            {programSettings.advancedFeaturesEnabled && programSettings.aiChatEnabled && (
               <button
                 type="button"
                 onClick={openAIChatView}
@@ -436,7 +453,7 @@ export default function App() {
                 <MessageSquare className="h-5 w-5 fill-current stroke-white" />
               </button>
             )}
-            {programSettings.apiTesterEnabled && (
+            {programSettings.advancedFeaturesEnabled && programSettings.apiTesterEnabled && (
               <button
                 type="button"
                 onClick={openApiTesterView}
@@ -447,7 +464,7 @@ export default function App() {
                 <Zap className="h-5 w-5" />
               </button>
             )}
-            {programSettings.connectivityTesterEnabled && (
+            {programSettings.advancedFeaturesEnabled && programSettings.connectivityTesterEnabled && (
               <button
                 type="button"
                 onClick={openConnectivityView}
@@ -456,6 +473,17 @@ export default function App() {
               >
                 {currentView === 'connectivity' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
                 <Radar className="h-5 w-5" />
+              </button>
+            )}
+            {programSettings.advancedFeaturesEnabled && programSettings.webServerEnabled && (
+              <button
+                type="button"
+                onClick={openWebServerView}
+                className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'webServer' ? 'text-blue-600' : 'text-gray-700'}`}
+                title={t.nav.webServer}
+              >
+                {currentView === 'webServer' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+                <Globe className="h-5 w-5" />
               </button>
             )}
             <button
@@ -518,6 +546,10 @@ export default function App() {
             ) : currentView === 'connectivity' ? (
               <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
                 <ConnectivityTesterView t={t} />
+              </Suspense>
+            ) : currentView === 'webServer' ? (
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <WebServerView t={t} />
               </Suspense>
             ) : currentView === 'patches' ? (
               <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
@@ -609,7 +641,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.7.0 - Made By Victor Samuel</span>
+        <span>Control Panel - Applications Dashboard v2.8.0 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

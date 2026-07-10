@@ -1,5 +1,16 @@
 [
   {
+    "version": "2.8.0",
+    "date": "2026-07-23",
+    "title": "Mini web server and Advanced Features master toggle",
+    "changes": [
+      "New Advanced Feature: Mini web server that serves any local folder as a static site on a configurable port.",
+      "New Settings > General master toggle to enable or disable all Advanced Features at once while keeping the individual settings saved.",
+      "Backend startup, sidebar, and endpoints for AI Chat, API Tester, Connectivity, and Web Server now honour both the master toggle and each individual feature flag.",
+      "Updated application versioning to 2.8.0."
+    ]
+  },
+  {
     "version": "2.7.0",
     "date": "2026-07-16",
     "title": "Configurable internal API",

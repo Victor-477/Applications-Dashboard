@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Globe2, LayoutGrid, List, MessageSquare, Moon, Palette, Pencil, Radar, RefreshCw, Server, Settings, Sun, Trash2, Upload, Zap } from 'lucide-react';
+import { Download, Globe, Globe2, LayoutGrid, List, MessageSquare, Moon, Palette, Pencil, Radar, RefreshCw, Server, Settings, Sun, Trash2, Upload, Zap } from 'lucide-react';
 import ImportInstancesDialog from './settings/ImportInstancesDialog';
 import LogsExportDialog, { type ExportFormat } from './settings/LogsExportDialog';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -55,6 +55,8 @@ export default function SettingsView({
     connectivityTesterEnabled: currentProgramSettings.connectivityTesterEnabled,
     internalApiPort: currentProgramSettings.internalApiPort,
     internalApiRemoteAccess: currentProgramSettings.internalApiRemoteAccess,
+    advancedFeaturesEnabled: currentProgramSettings.advancedFeaturesEnabled,
+    webServerEnabled: currentProgramSettings.webServerEnabled,
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -122,6 +124,8 @@ export default function SettingsView({
         connectivityTesterEnabled: Boolean(settings.connectivityTesterEnabled),
         internalApiPort: Number(settings.internalApiPort) || 0,
         internalApiRemoteAccess: Boolean(settings.internalApiRemoteAccess),
+        advancedFeaturesEnabled: settings.advancedFeaturesEnabled !== false,
+        webServerEnabled: Boolean(settings.webServerEnabled),
       }));
     } finally {
       setIsLoading(false);
@@ -148,6 +152,8 @@ export default function SettingsView({
       connectivityTesterEnabled: currentProgramSettings.connectivityTesterEnabled,
       internalApiPort: currentProgramSettings.internalApiPort,
       internalApiRemoteAccess: currentProgramSettings.internalApiRemoteAccess,
+      advancedFeaturesEnabled: currentProgramSettings.advancedFeaturesEnabled,
+      webServerEnabled: currentProgramSettings.webServerEnabled,
     }));
     setCustomColorDraft(currentProgramSettings.accentColor.replace('#', ''));
   }, [
@@ -160,6 +166,8 @@ export default function SettingsView({
     currentProgramSettings.connectivityTesterEnabled,
     currentProgramSettings.internalApiPort,
     currentProgramSettings.internalApiRemoteAccess,
+    currentProgramSettings.advancedFeaturesEnabled,
+    currentProgramSettings.webServerEnabled,
   ]);
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -566,6 +574,32 @@ export default function SettingsView({
 
               <section className="border border-gray-200 bg-white">
                 <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.advancedMasterCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.advancedMasterCategoryDescription}</p>
+                </div>
+                <div className="px-5 py-5">
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.advancedFeaturesEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, advancedFeaturesEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.advancedMasterToggle}</span>
+                        <span className={`text-xs font-bold ${settingsForm.advancedFeaturesEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.advancedFeaturesEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.advancedMasterDescription}</p>
+                    </div>
+                  </label>
+                </div>
+              </section>
+
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
                   <h3 className="text-sm font-bold text-gray-900">{t.settings.internalApiCategory}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t.settings.internalApiCategoryDescription}</p>
                 </div>
@@ -690,7 +724,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.7.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.8.0</p>
                   </div>
                 </div>
               </section>
@@ -945,6 +979,24 @@ export default function SettingsView({
                       <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableConnectivityDescription}</p>
                     </div>
                   </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.webServerEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, webServerEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.enableWebServer}</span>
+                        <span className={`text-xs font-bold ${settingsForm.webServerEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.webServerEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableWebServerDescription}</p>
+                    </div>
+                  </label>
                 </div>
               </section>
 
@@ -1064,6 +1116,22 @@ export default function SettingsView({
                   </div>
                 </div>
               </section>
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Globe className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.enableWebServer}</p>
+                    <p className={`mt-1 text-xs font-bold ${settingsForm.webServerEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {settingsForm.webServerEnabled ? t.settings.featureOn : t.settings.featureOff}
+                    </p>
+                  </div>
+                </div>
+              </section>
+              {!settingsForm.advancedFeaturesEnabled && (
+                <section className="border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-xs font-semibold text-amber-800">{t.settings.advancedMasterHint}</p>
+                </section>
+              )}
             </aside>
           </div>
         )}

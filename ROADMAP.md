@@ -2,25 +2,25 @@
 
 Planned work between the current 2.6.0 release and the 3.0.0 milestone. Each version is landed as a single Git commit after implementation and validation.
 
-## v2.7 — Internal API configuration
+## v2.7 — Internal API configuration ✅
 
 **Focus:** give the user explicit control over the panel's HTTP interface.
 
-- [ ] New Settings › General › **Internal API** section.
-- [ ] Configurable **port** (number input, saved to `settings.json`; requires app restart to apply).
-- [ ] Toggle **Allow remote connections** — when off, the API binds to `127.0.0.1`; when on, it binds to `0.0.0.0` so other devices on the LAN can reach it.
-- [ ] Backend (`server.ts`) reads the settings before `app.listen`, falling back to environment variables and then the built-in defaults.
-- [ ] Electron main (`electron/main.cjs`) reads the same settings first so the packaged app polls the correct port.
-- [ ] Translations in all six languages, patch notes, and version bump.
+- [x] New Settings › General › **Internal API** section.
+- [x] Configurable **port** (number input, saved to `settings.json`; requires app restart to apply).
+- [x] Toggle **Allow remote connections** — when off, the API binds to `127.0.0.1`; when on, it binds to `0.0.0.0` so other devices on the LAN can reach it.
+- [x] Backend (`server.ts`) reads the settings before `app.listen`, falling back to environment variables and then the built-in defaults.
+- [x] Electron main (`electron/main.cjs`) reads the same settings first so the packaged app polls the correct port.
+- [x] Translations in all six languages, patch notes, and version bump.
 
-## v2.8 — Apache mini-server + advanced-features master toggle
+## v2.8 — Apache mini-server + advanced-features master toggle ✅
 
 **Focus:** add another advanced feature and simplify the on/off story.
 
-- [ ] New advanced feature: **Apache-style mini web server** — the user can serve a local folder of static web pages under a configurable mount, useful for testing markup and CSS.
-- [ ] New page (behind an Advanced Features toggle) for the mini-server: pick a folder, set a port, start/stop the server, preview the mounted URL.
-- [ ] New **General settings master toggle** for Advanced Features — turns all optional tools off at once without losing their individual settings.
-- [ ] Translations, patch notes, version bump.
+- [x] New advanced feature: **Mini web server** — the user can serve a local folder of static web pages under a configurable port, useful for testing markup and CSS.
+- [x] New page (behind an Advanced Features toggle) for the mini-server: pick a folder, set a port, start/stop the server, preview the mounted URL.
+- [x] New **General settings master toggle** for Advanced Features — turns all optional tools off at once without losing their individual settings.
+- [x] Translations, patch notes, version bump.
 
 ## v2.9 — Internal instance folder
 

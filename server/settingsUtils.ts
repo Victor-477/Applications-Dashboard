@@ -16,6 +16,10 @@ export function getDefaultSettings(): ProgramSettingsFile {
     connectivityTesterEnabled: false,
     internalApiPort: 0,
     internalApiRemoteAccess: false,
+    advancedFeaturesEnabled: true,
+    webServerEnabled: false,
+    webServerPort: 8080,
+    webServerRootFolder: '',
   };
 }
 
@@ -78,5 +82,18 @@ export function publicSettings(settings: ProgramSettingsFile) {
     connectivityTesterEnabled: normalizeFeatureFlag(settings.connectivityTesterEnabled, false),
     internalApiPort: normalizeInternalApiPort(settings.internalApiPort),
     internalApiRemoteAccess: normalizeFeatureFlag(settings.internalApiRemoteAccess, false),
+    advancedFeaturesEnabled: normalizeFeatureFlag(settings.advancedFeaturesEnabled, true),
+    webServerEnabled: normalizeFeatureFlag(settings.webServerEnabled, false),
+    webServerPort: normalizeInternalApiPort(settings.webServerPort, 8080) || 8080,
+    webServerRootFolder: String(settings.webServerRootFolder || '').trim(),
   };
+}
+
+/**
+ * A feature is only truly on when both the master toggle AND its individual
+ * toggle are enabled. Used by the backend to gate endpoints and by the
+ * frontend to hide sidebar entries.
+ */
+export function isFeatureEffectivelyEnabled(master: unknown, individual: unknown): boolean {
+  return Boolean(master) && Boolean(individual);
 }
