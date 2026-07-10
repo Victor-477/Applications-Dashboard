@@ -3,6 +3,11 @@ import type { Language } from '../i18n';
 export const patchTextTranslations: Record<Language, Record<string, string>> = {
   en: {},
   de: {
+    'Configurable internal API': 'Konfigurierbare interne API',
+    'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': 'Neuer Bereich Einstellungen > Allgemein > Interne API zum Wählen des HTTP-Ports des Panels und ob andere Geräte im Netzwerk darauf zugreifen dürfen.',
+    'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'Der Serverstart berücksichtigt den gespeicherten Port und die Netzwerkrichtlinie, sodass Entwicklungs- und Paketbuilds die Auswahl übernehmen.',
+    'Electron main process reads the same settings first so the desktop shell polls the correct port.': 'Der Electron-Hauptprozess liest dieselben Einstellungen zuerst, damit die Desktop-Shell den richtigen Port abfragt.',
+    'Updated application versioning to 2.7.0.': 'Die Anwendungsversion wurde auf 2.7.0 aktualisiert.',
     'Advanced features and API Tester': 'Erweiterte Funktionen und API-Tester',
     'Advanced features settings tab, optional AI Chat feature, and new API Tester tool.': 'Registerkarte für erweiterte Funktionen in den Einstellungen, optionaler KI-Chat und neues API-Tester-Werkzeug.',
     'New Advanced features settings tab to enable or disable optional panel tools.': 'Neue Registerkarte "Erweiterte Funktionen" in den Einstellungen, um optionale Panel-Werkzeuge zu aktivieren oder zu deaktivieren.',
@@ -79,6 +84,11 @@ export const patchTextTranslations: Record<Language, Record<string, string>> = {
     'Validate `http://127.0.0.1:3000/` when the change affects the UI or API.': '`http://127.0.0.1:3000/` validieren, wenn die Änderung UI oder API betrifft.',
   },
   es: {
+    'Configurable internal API': 'API interna configurable',
+    'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': 'Nueva seccion Configuracion > General > API interna para elegir el puerto HTTP del panel y si otros dispositivos de la red pueden acceder.',
+    'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'El arranque del servidor respeta el puerto y la politica de red guardados, por lo que los builds de desarrollo y empaquetados siguen la eleccion.',
+    'Electron main process reads the same settings first so the desktop shell polls the correct port.': 'El proceso principal de Electron lee la misma configuracion primero para que el shell de escritorio consulte el puerto correcto.',
+    'Updated application versioning to 2.7.0.': 'Se actualizo el versionamiento de la aplicacion a 2.7.0.',
     'Advanced features and API Tester': 'Funciones avanzadas y Testeador de API',
     'Advanced features settings tab, optional AI Chat feature, and new API Tester tool.': 'Pestana de Funciones avanzadas en Configuracion, Chat de IA opcional y nueva herramienta Testeador de API.',
     'New Advanced features settings tab to enable or disable optional panel tools.': 'Nueva pestana de Funciones avanzadas en Configuracion para habilitar o deshabilitar herramientas opcionales del panel.',
@@ -155,6 +165,11 @@ export const patchTextTranslations: Record<Language, Record<string, string>> = {
     'Validate `http://127.0.0.1:3000/` when the change affects the UI or API.': 'Validar `http://127.0.0.1:3000/` cuando el cambio afecte la UI o la API.',
   },
   ja: {
+    'Configurable internal API': '設定可能な内部 API',
+    'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': '設定 > 一般 > 内部 API セクションを追加し、パネルの HTTP ポートとネットワーク上の他デバイスからのアクセス可否を選択できるようにしました。',
+    'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'サーバーの起動処理が保存されたポートとネットワーク方針を尊重するため、開発ビルドとパッケージビルドの両方で設定が反映されます。',
+    'Electron main process reads the same settings first so the desktop shell polls the correct port.': 'Electron のメインプロセスも同じ設定を先に読み取るため、デスクトップシェルは正しいポートを問い合わせます。',
+    'Updated application versioning to 2.7.0.': 'アプリケーションのバージョンを 2.7.0 に更新しました。',
     'Advanced features and API Tester': '高度な機能と API テスター',
     'Advanced features settings tab, optional AI Chat feature, and new API Tester tool.': '設定の「高度な機能」タブ、オプションの AI チャット、新しい API テスターツール。',
     'New Advanced features settings tab to enable or disable optional panel tools.': 'オプションのパネルツールを有効化・無効化するための、新しい「高度な機能」設定タブを追加しました。',
@@ -231,6 +246,11 @@ export const patchTextTranslations: Record<Language, Record<string, string>> = {
     'Validate `http://127.0.0.1:3000/` when the change affects the UI or API.': '変更が UI または API に影響する場合は `http://127.0.0.1:3000/` を検証する。',
   },
   pt: {
+    'Configurable internal API': 'API interna configuravel',
+    'New Settings > General > Internal API section for choosing the panel\'s HTTP port and whether other devices on the network can reach it.': 'Nova secao Configuracoes > Geral > API interna para escolher a porta HTTP do painel e se outros dispositivos da rede podem acessa-lo.',
+    'Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.': 'O startup do backend respeita a porta e a politica de rede salvas, entao builds de desenvolvimento e empacotados seguem a escolha.',
+    'Electron main process reads the same settings first so the desktop shell polls the correct port.': 'O processo principal do Electron le as mesmas configuracoes primeiro para que o shell de desktop consulte a porta correta.',
+    'Updated application versioning to 2.7.0.': 'Versionamento da aplicacao atualizado para 2.7.0.',
     'Advanced features and API Tester': 'Recursos avancados e Testador de API',
     'Advanced features settings tab, optional AI Chat feature, and new API Tester tool.': 'Aba de Recursos avancados nas configuracoes, AI Chat opcional e novo Testador de API.',
     'New Advanced features settings tab to enable or disable optional panel tools.': 'Nova aba Recursos avancados em Configuracoes para habilitar ou desabilitar ferramentas opcionais do painel.',

@@ -14,7 +14,22 @@ export function getDefaultSettings(): ProgramSettingsFile {
     aiChatEnabled: true,
     apiTesterEnabled: false,
     connectivityTesterEnabled: false,
+    internalApiPort: 0,
+    internalApiRemoteAccess: false,
   };
+}
+
+/**
+ * Coerces a saved port value into a valid TCP port, or 0 when it should fall
+ * back to the environment / built-in default. Values outside 1-65535 collapse
+ * to 0 so bad input never keeps the server from starting.
+ */
+export function normalizeInternalApiPort(value: unknown, fallback = 0): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  const port = Math.trunc(parsed);
+  if (port <= 0 || port > 65535) return 0;
+  return port;
 }
 
 export function normalizeThemeMode(value: unknown): 'light' | 'dark' {
@@ -61,5 +76,7 @@ export function publicSettings(settings: ProgramSettingsFile) {
     aiChatEnabled: normalizeFeatureFlag(settings.aiChatEnabled, true),
     apiTesterEnabled: normalizeFeatureFlag(settings.apiTesterEnabled, false),
     connectivityTesterEnabled: normalizeFeatureFlag(settings.connectivityTesterEnabled, false),
+    internalApiPort: normalizeInternalApiPort(settings.internalApiPort),
+    internalApiRemoteAccess: normalizeFeatureFlag(settings.internalApiRemoteAccess, false),
   };
 }

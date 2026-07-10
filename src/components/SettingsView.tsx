@@ -53,6 +53,8 @@ export default function SettingsView({
     aiChatEnabled: currentProgramSettings.aiChatEnabled,
     apiTesterEnabled: currentProgramSettings.apiTesterEnabled,
     connectivityTesterEnabled: currentProgramSettings.connectivityTesterEnabled,
+    internalApiPort: currentProgramSettings.internalApiPort,
+    internalApiRemoteAccess: currentProgramSettings.internalApiRemoteAccess,
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -118,6 +120,8 @@ export default function SettingsView({
         aiChatEnabled: Boolean(settings.aiChatEnabled),
         apiTesterEnabled: Boolean(settings.apiTesterEnabled),
         connectivityTesterEnabled: Boolean(settings.connectivityTesterEnabled),
+        internalApiPort: Number(settings.internalApiPort) || 0,
+        internalApiRemoteAccess: Boolean(settings.internalApiRemoteAccess),
       }));
     } finally {
       setIsLoading(false);
@@ -142,6 +146,8 @@ export default function SettingsView({
       aiChatEnabled: currentProgramSettings.aiChatEnabled,
       apiTesterEnabled: currentProgramSettings.apiTesterEnabled,
       connectivityTesterEnabled: currentProgramSettings.connectivityTesterEnabled,
+      internalApiPort: currentProgramSettings.internalApiPort,
+      internalApiRemoteAccess: currentProgramSettings.internalApiRemoteAccess,
     }));
     setCustomColorDraft(currentProgramSettings.accentColor.replace('#', ''));
   }, [
@@ -152,6 +158,8 @@ export default function SettingsView({
     currentProgramSettings.aiChatEnabled,
     currentProgramSettings.apiTesterEnabled,
     currentProgramSettings.connectivityTesterEnabled,
+    currentProgramSettings.internalApiPort,
+    currentProgramSettings.internalApiRemoteAccess,
   ]);
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -558,6 +566,50 @@ export default function SettingsView({
 
               <section className="border border-gray-200 bg-white">
                 <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.internalApiCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.internalApiCategoryDescription}</p>
+                </div>
+                <div className="space-y-5 px-5 py-5">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.internalApiPort}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={65535}
+                      value={settingsForm.internalApiPort || ''}
+                      onChange={event => setSettingsForm({ ...settingsForm, internalApiPort: Number(event.target.value) || 0 })}
+                      placeholder={t.settings.internalApiPortPlaceholder}
+                      className="w-full max-w-xs border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    />
+                    <span className="mt-1.5 block text-xs font-medium text-gray-500">{t.settings.internalApiPortHelp}</span>
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.internalApiRemoteAccess}
+                      onChange={event => setSettingsForm({ ...settingsForm, internalApiRemoteAccess: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.internalApiRemoteAccess}</span>
+                        <span className={`text-xs font-bold ${settingsForm.internalApiRemoteAccess ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.internalApiRemoteAccess ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.internalApiRemoteAccessDescription}</p>
+                    </div>
+                  </label>
+
+                  <p className="border-l-2 border-amber-500 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    {t.settings.internalApiRestartHint}
+                  </p>
+                </div>
+              </section>
+
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
                   <h3 className="text-sm font-bold text-gray-900">{t.settings.instancesCategory}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t.settings.instancesCategoryDescription}</p>
                 </div>
@@ -638,7 +690,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.6.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.7.0</p>
                   </div>
                 </div>
               </section>

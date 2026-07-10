@@ -4,9 +4,17 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.6.0
-- Date: 2026-07-09
-- Main area: Advanced features settings tab, optional AI Chat feature, new API Tester tool, new Tests and Connectivity tool, and a lighter frontend bundle.
+- Version: 2.7.0
+- Date: 2026-07-16
+- Main area: configurable internal API port and optional network exposure.
+
+## 2.7.0
+
+- Added a Settings > General > Internal API section that lets the user pick the panel's HTTP port and decide whether other devices on the network can reach it.
+- Backend startup reads the persisted port and network policy before `app.listen`, falling back to the launch environment and built-in defaults when the values are missing or invalid.
+- Electron main process reads the same settings first so the packaged desktop shell polls the correct port when the app boots.
+- Added an in-UI hint explaining that internal API changes only take effect after the next application launch.
+- Updated application versioning to 2.7.0.
 
 ## 2.6.0
 

@@ -1,5 +1,16 @@
 [
   {
+    "version": "2.7.0",
+    "date": "2026-07-16",
+    "title": "Configurable internal API",
+    "changes": [
+      "New Settings > General > Internal API section for choosing the panel's HTTP port and whether other devices on the network can reach it.",
+      "Backend startup respects the saved port and network policy so both dev and packaged builds honour the choice.",
+      "Electron main process reads the same settings first so the desktop shell polls the correct port.",
+      "Updated application versioning to 2.7.0."
+    ]
+  },
+  {
     "version": "2.6.0",
     "date": "2026-07-09",
     "title": "Advanced features and API Tester",

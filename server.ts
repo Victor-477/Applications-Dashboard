@@ -14,6 +14,7 @@ import {
   normalizeDashboardLayout,
   normalizeFeatureFlag,
   normalizeHomepageMode,
+  normalizeInternalApiPort,
   normalizeThemeMode,
   publicSettings
 } from './server/settingsUtils';
@@ -791,6 +792,8 @@ app.put('/api/settings', async (req, res) => {
     aiChatEnabled: normalizeFeatureFlag(req.body.aiChatEnabled, current.aiChatEnabled),
     apiTesterEnabled: normalizeFeatureFlag(req.body.apiTesterEnabled, current.apiTesterEnabled),
     connectivityTesterEnabled: normalizeFeatureFlag(req.body.connectivityTesterEnabled, current.connectivityTesterEnabled),
+    internalApiPort: normalizeInternalApiPort(req.body.internalApiPort, current.internalApiPort),
+    internalApiRemoteAccess: normalizeFeatureFlag(req.body.internalApiRemoteAccess, current.internalApiRemoteAccess),
   };
 
   await saveSettings(next);
@@ -1322,8 +1325,16 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, HOST, () => {
-    console.log(`Server running on http://${HOST}:${PORT}`);
+  // Read the saved internal API settings and prefer them over the env fallback.
+  // A stored port of 0 means "use the environment default" — this keeps the app
+  // starting cleanly when the setting is missing or invalid.
+  const persisted = await getSettings();
+  const savedPort = normalizeInternalApiPort(persisted.internalApiPort);
+  const effectivePort = savedPort > 0 ? savedPort : PORT;
+  const effectiveHost = persisted.internalApiRemoteAccess ? '0.0.0.0' : HOST;
+
+  app.listen(effectivePort, effectiveHost, () => {
+    console.log(`Server running on http://${effectiveHost}:${effectivePort}`);
   });
 }
 

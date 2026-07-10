@@ -32,6 +32,10 @@ export interface ProgramSettingsFile {
   aiChatEnabled: boolean;
   apiTesterEnabled: boolean;
   connectivityTesterEnabled: boolean;
+  /** Port the panel's HTTP server listens on. 0 = use environment default. */
+  internalApiPort: number;
+  /** When true the server binds to 0.0.0.0 (LAN reachable). Otherwise 127.0.0.1. */
+  internalApiRemoteAccess: boolean;
 }
 
 export interface SystemLogEntry {

@@ -38,6 +38,8 @@ export interface ProgramSettings {
   aiChatEnabled: boolean;
   apiTesterEnabled: boolean;
   connectivityTesterEnabled: boolean;
+  internalApiPort: number;
+  internalApiRemoteAccess: boolean;
 }
 
 export interface ChatMessage {

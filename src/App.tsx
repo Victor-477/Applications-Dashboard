@@ -72,6 +72,8 @@ const defaultProgramSettings: ProgramSettings = {
   aiChatEnabled: true,
   apiTesterEnabled: false,
   connectivityTesterEnabled: false,
+  internalApiPort: 0,
+  internalApiRemoteAccess: false,
 };
 
 export default function App() {
@@ -607,7 +609,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.6.0 - Made By Victor Samuel</span>
+        <span>Control Panel - Applications Dashboard v2.7.0 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>
