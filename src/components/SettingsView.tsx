@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Globe2, LayoutGrid, List, Moon, Palette, Pencil, RefreshCw, Server, Settings, Sun, Trash2, Upload } from 'lucide-react';
+import { Download, Globe2, LayoutGrid, List, MessageSquare, Moon, Palette, Pencil, Radar, RefreshCw, Server, Settings, Sun, Trash2, Upload, Zap } from 'lucide-react';
 import ImportInstancesDialog from './settings/ImportInstancesDialog';
 import LogsExportDialog, { type ExportFormat } from './settings/LogsExportDialog';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -50,6 +50,9 @@ export default function SettingsView({
     themeMode: currentProgramSettings.themeMode,
     accentColor: currentProgramSettings.accentColor,
     dashboardLayout: currentProgramSettings.dashboardLayout,
+    aiChatEnabled: currentProgramSettings.aiChatEnabled,
+    apiTesterEnabled: currentProgramSettings.apiTesterEnabled,
+    connectivityTesterEnabled: currentProgramSettings.connectivityTesterEnabled,
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -112,6 +115,9 @@ export default function SettingsView({
         themeMode: settings.themeMode || 'light',
         accentColor: settings.accentColor || '#009dea',
         dashboardLayout: settings.dashboardLayout || 'cards',
+        aiChatEnabled: Boolean(settings.aiChatEnabled),
+        apiTesterEnabled: Boolean(settings.apiTesterEnabled),
+        connectivityTesterEnabled: Boolean(settings.connectivityTesterEnabled),
       }));
     } finally {
       setIsLoading(false);
@@ -133,6 +139,9 @@ export default function SettingsView({
       themeMode: currentProgramSettings.themeMode,
       accentColor: currentProgramSettings.accentColor,
       dashboardLayout: currentProgramSettings.dashboardLayout,
+      aiChatEnabled: currentProgramSettings.aiChatEnabled,
+      apiTesterEnabled: currentProgramSettings.apiTesterEnabled,
+      connectivityTesterEnabled: currentProgramSettings.connectivityTesterEnabled,
     }));
     setCustomColorDraft(currentProgramSettings.accentColor.replace('#', ''));
   }, [
@@ -140,6 +149,9 @@ export default function SettingsView({
     currentProgramSettings.themeMode,
     currentProgramSettings.accentColor,
     currentProgramSettings.dashboardLayout,
+    currentProgramSettings.aiChatEnabled,
+    currentProgramSettings.apiTesterEnabled,
+    currentProgramSettings.connectivityTesterEnabled,
   ]);
 
   const tabs: { id: SettingsTab; label: string }[] = [
@@ -147,6 +159,7 @@ export default function SettingsView({
     { id: 'logs', label: t.settings.systemLogs },
     { id: 'general', label: t.settings.general },
     { id: 'style', label: t.settings.style },
+    { id: 'advanced', label: t.settings.advanced },
   ];
 
   const accentSwatches = [
@@ -545,66 +558,6 @@ export default function SettingsView({
 
               <section className="border border-gray-200 bg-white">
                 <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
-                  <h3 className="text-sm font-bold text-gray-900">{t.settings.aiCategory}</h3>
-                  <p className="mt-1 text-sm text-gray-500">{t.settings.aiCategoryDescription}</p>
-                </div>
-                <div className="space-y-5 px-5 py-5">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiProvider}</span>
-                      <select
-                        value={settingsForm.aiProvider}
-                        onChange={event => setSettingsForm({ ...settingsForm, aiProvider: event.target.value })}
-                        className="w-full border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-                      >
-                        <option value="openai">OpenAI</option>
-                        <option value="gemini">Google Gemini</option>
-                        <option value="anthropic">Anthropic</option>
-                        <option value="openai-compatible">OpenAI-compatible</option>
-                      </select>
-                    </label>
-
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiModel}</span>
-                      <input
-                        value={settingsForm.aiModel}
-                        onChange={event => setSettingsForm({ ...settingsForm, aiModel: event.target.value })}
-                        placeholder={t.settings.aiModelPlaceholder}
-                        className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                      />
-                    </label>
-                  </div>
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiBaseUrl}</span>
-                    <input
-                      value={settingsForm.aiBaseUrl}
-                      onChange={event => setSettingsForm({ ...settingsForm, aiBaseUrl: event.target.value })}
-                      placeholder={t.settings.aiBaseUrlPlaceholder}
-                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiApiKey}</span>
-                    <input
-                      type="password"
-                      value={settingsForm.aiApiKey}
-                      onChange={event => setSettingsForm({ ...settingsForm, aiApiKey: event.target.value })}
-                      placeholder={t.settings.aiApiKeyPlaceholder}
-                      className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
-                    />
-                    {programSettings?.aiApiKeySet && <span className="mt-1.5 block text-xs font-semibold text-green-600">{t.settings.aiKeyConfigured}</span>}
-                  </label>
-
-                  <p className="border-l-2 border-blue-500 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
-                    {t.settings.aiSecurityNote}
-                  </p>
-                </div>
-              </section>
-
-              <section className="border border-gray-200 bg-white">
-                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
                   <h3 className="text-sm font-bold text-gray-900">{t.settings.instancesCategory}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t.settings.instancesCategoryDescription}</p>
                 </div>
@@ -685,7 +638,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.5.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.6.0</p>
                   </div>
                 </div>
               </section>
@@ -871,6 +824,191 @@ export default function SettingsView({
                       className="h-8 w-8 rounded-full"
                       style={{ backgroundColor: settingsForm.accentColor }}
                     />
+                  </div>
+                </div>
+              </section>
+            </aside>
+          </div>
+        )}
+
+        {activeTab === 'advanced' && (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.6fr)]">
+            <section className="space-y-6">
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.advancedCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.advancedCategoryDescription}</p>
+                </div>
+                <div className="space-y-4 px-5 py-5">
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.aiChatEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, aiChatEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.enableAiChat}</span>
+                        <span className={`text-xs font-bold ${settingsForm.aiChatEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.aiChatEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableAiChatDescription}</p>
+                    </div>
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.apiTesterEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, apiTesterEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.enableApiTester}</span>
+                        <span className={`text-xs font-bold ${settingsForm.apiTesterEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.apiTesterEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableApiTesterDescription}</p>
+                    </div>
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.connectivityTesterEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, connectivityTesterEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.enableConnectivity}</span>
+                        <span className={`text-xs font-bold ${settingsForm.connectivityTesterEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.connectivityTesterEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableConnectivityDescription}</p>
+                    </div>
+                  </label>
+                </div>
+              </section>
+
+              {settingsForm.aiChatEnabled ? (
+                <section className="border border-gray-200 bg-white">
+                  <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                    <h3 className="text-sm font-bold text-gray-900">{t.settings.aiCategory}</h3>
+                    <p className="mt-1 text-sm text-gray-500">{t.settings.aiCategoryDescription}</p>
+                  </div>
+                  <div className="space-y-5 px-5 py-5">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiProvider}</span>
+                        <select
+                          value={settingsForm.aiProvider}
+                          onChange={event => setSettingsForm({ ...settingsForm, aiProvider: event.target.value })}
+                          className="w-full border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+                        >
+                          <option value="openai">OpenAI</option>
+                          <option value="gemini">Google Gemini</option>
+                          <option value="anthropic">Anthropic</option>
+                          <option value="openai-compatible">OpenAI-compatible</option>
+                        </select>
+                      </label>
+
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiModel}</span>
+                        <input
+                          value={settingsForm.aiModel}
+                          onChange={event => setSettingsForm({ ...settingsForm, aiModel: event.target.value })}
+                          placeholder={t.settings.aiModelPlaceholder}
+                          className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                        />
+                      </label>
+                    </div>
+
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiBaseUrl}</span>
+                      <input
+                        value={settingsForm.aiBaseUrl}
+                        onChange={event => setSettingsForm({ ...settingsForm, aiBaseUrl: event.target.value })}
+                        placeholder={t.settings.aiBaseUrlPlaceholder}
+                        className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.aiApiKey}</span>
+                      <input
+                        type="password"
+                        value={settingsForm.aiApiKey}
+                        onChange={event => setSettingsForm({ ...settingsForm, aiApiKey: event.target.value })}
+                        placeholder={t.settings.aiApiKeyPlaceholder}
+                        className="w-full border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                      />
+                      {programSettings?.aiApiKeySet && <span className="mt-1.5 block text-xs font-semibold text-green-600">{t.settings.aiKeyConfigured}</span>}
+                    </label>
+
+                    <p className="border-l-2 border-blue-500 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
+                      {t.settings.aiSecurityNote}
+                    </p>
+                  </div>
+                </section>
+              ) : (
+                <section className="border border-dashed border-gray-300 bg-gray-50 px-5 py-6">
+                  <p className="text-sm font-semibold text-gray-700">{t.settings.aiCategory}</p>
+                  <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.featureDisabledHint}</p>
+                </section>
+              )}
+
+              <div className="border border-gray-200 bg-white px-5 py-4">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={persistProgramSettings}
+                    className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                  >
+                    {t.settings.saveSettings}
+                  </button>
+                  {settingsSaved && <span className="text-sm font-semibold text-green-600">{t.settings.settingsSaved}</span>}
+                </div>
+                <p className="mt-2 text-xs font-medium text-gray-500">{t.settings.saveSettingsHelp}</p>
+              </div>
+            </section>
+
+            <aside className="space-y-4">
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <MessageSquare className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.enableAiChat}</p>
+                    <p className={`mt-1 text-xs font-bold ${settingsForm.aiChatEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {settingsForm.aiChatEnabled ? t.settings.featureOn : t.settings.featureOff}
+                    </p>
+                  </div>
+                </div>
+              </section>
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Zap className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.enableApiTester}</p>
+                    <p className={`mt-1 text-xs font-bold ${settingsForm.apiTesterEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {settingsForm.apiTesterEnabled ? t.settings.featureOn : t.settings.featureOff}
+                    </p>
+                  </div>
+                </div>
+              </section>
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Radar className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.enableConnectivity}</p>
+                    <p className={`mt-1 text-xs font-bold ${settingsForm.connectivityTesterEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {settingsForm.connectivityTesterEnabled ? t.settings.featureOn : t.settings.featureOff}
+                    </p>
                   </div>
                 </div>
               </section>

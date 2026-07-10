@@ -3,16 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, type CSSProperties } from 'react';
-import { ChevronDown, FileText, Globe2, Home, Info, Layers, MessageSquare, Plus, Settings } from 'lucide-react';
-import AboutView from './components/AboutView';
+import { useState, useEffect, useMemo, lazy, Suspense, type CSSProperties } from 'react';
+import { ChevronDown, FileText, Globe2, Home, Info, Layers, MessageSquare, Plus, Radar, Settings, Zap } from 'lucide-react';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import AppListItem from './components/AppListItem';
-import AIChatView from './components/AIChatView';
 import LogViewer from './components/LogViewer';
-import PatchFilesView from './components/PatchFilesView';
-import SettingsView from './components/SettingsView';
+
+// Secondary views are code-split so they only load when the user opens them.
+// This keeps the initial dashboard bundle small.
+const AboutView = lazy(() => import('./components/AboutView'));
+const AIChatView = lazy(() => import('./components/AIChatView'));
+const ApiTesterView = lazy(() => import('./components/ApiTesterView'));
+const ConnectivityTesterView = lazy(() => import('./components/ConnectivityTesterView'));
+const PatchFilesView = lazy(() => import('./components/PatchFilesView'));
+const SettingsView = lazy(() => import('./components/SettingsView'));
 import type { AppState, AppConfig, AppView, LogLine, ProgramSettings, SettingsTab } from './types';
 import { isLanguage, languageOptions, translations, type Language } from './i18n';
 
@@ -64,6 +69,9 @@ const defaultProgramSettings: ProgramSettings = {
   themeMode: 'light',
   accentColor: '#009dea',
   dashboardLayout: 'cards',
+  aiChatEnabled: true,
+  apiTesterEnabled: false,
+  connectivityTesterEnabled: false,
 };
 
 export default function App() {
@@ -89,13 +97,21 @@ export default function App() {
     hasSidePanelOpen ? 'basis-[49%]' : 'basis-full',
     currentView === 'services' ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
   ].join(' ');
-  const themeVars = {
+  // Redirect away from a feature view whose feature was just disabled, so the
+  // user cannot end up on a hidden page (e.g. AI Chat while aiChatEnabled=false).
+  useEffect(() => {
+    if (currentView === 'ai' && !programSettings.aiChatEnabled) setCurrentView('services');
+    if (currentView === 'apiTester' && !programSettings.apiTesterEnabled) setCurrentView('services');
+    if (currentView === 'connectivity' && !programSettings.connectivityTesterEnabled) setCurrentView('services');
+  }, [currentView, programSettings.aiChatEnabled, programSettings.apiTesterEnabled, programSettings.connectivityTesterEnabled]);
+
+  const themeVars = useMemo<CSSProperties>(() => ({
     '--app-accent': programSettings.accentColor,
     '--app-accent-readable': getReadableAccentColor(programSettings.accentColor),
     '--app-accent-soft': `${programSettings.accentColor}18`,
     '--app-accent-ring': `${programSettings.accentColor}40`,
     '--app-accent-contrast': getAccentContrastColor(programSettings.accentColor),
-  } as CSSProperties;
+  } as CSSProperties), [programSettings.accentColor]);
 
   const statusSummary = apps.reduce(
     (summary, app) => {
@@ -280,6 +296,20 @@ export default function App() {
     setEditingApp(null);
   };
 
+  const openApiTesterView = () => {
+    setCurrentView('apiTester');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
+  const openConnectivityView = () => {
+    setCurrentView('connectivity');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
   const openPatchFilesView = () => {
     setCurrentView('patches');
     setSelectedAppId(null);
@@ -393,15 +423,39 @@ export default function App() {
             >
               <Globe2 className="h-5 w-5" />
             </button>
-            <button
-              type="button"
-              onClick={openAIChatView}
-              className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'ai' ? 'text-blue-600' : 'text-gray-700'}`}
-              title={t.nav.aiChat}
-            >
-              {currentView === 'ai' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
-              <MessageSquare className="h-5 w-5 fill-current stroke-white" />
-            </button>
+            {programSettings.aiChatEnabled && (
+              <button
+                type="button"
+                onClick={openAIChatView}
+                className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'ai' ? 'text-blue-600' : 'text-gray-700'}`}
+                title={t.nav.aiChat}
+              >
+                {currentView === 'ai' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+                <MessageSquare className="h-5 w-5 fill-current stroke-white" />
+              </button>
+            )}
+            {programSettings.apiTesterEnabled && (
+              <button
+                type="button"
+                onClick={openApiTesterView}
+                className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'apiTester' ? 'text-blue-600' : 'text-gray-700'}`}
+                title={t.nav.apiTester}
+              >
+                {currentView === 'apiTester' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+                <Zap className="h-5 w-5" />
+              </button>
+            )}
+            {programSettings.connectivityTesterEnabled && (
+              <button
+                type="button"
+                onClick={openConnectivityView}
+                className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'connectivity' ? 'text-blue-600' : 'text-gray-700'}`}
+                title={t.nav.connectivity}
+              >
+                {currentView === 'connectivity' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+                <Radar className="h-5 w-5" />
+              </button>
+            )}
             <button
               type="button"
               onClick={openPatchFilesView}
@@ -438,23 +492,39 @@ export default function App() {
         <section className="flex min-w-0 flex-1 gap-6 overflow-hidden px-6 py-6">
           <div className={contentShellClass}>
             {currentView === 'settings' ? (
-              <SettingsView
-                refreshKey={settingsRefreshKey}
-                initialTab={settingsInitialTab}
-                onEdit={openEditForm}
-                onDelete={handleDeleteApp}
-                onToggleEnabled={handleToggleEnabled}
-                onAppsChanged={handleAppsChanged}
-                programSettings={programSettings}
-                onProgramSettingsChanged={setProgramSettings}
-                t={t}
-              />
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <SettingsView
+                  refreshKey={settingsRefreshKey}
+                  initialTab={settingsInitialTab}
+                  onEdit={openEditForm}
+                  onDelete={handleDeleteApp}
+                  onToggleEnabled={handleToggleEnabled}
+                  onAppsChanged={handleAppsChanged}
+                  programSettings={programSettings}
+                  onProgramSettingsChanged={setProgramSettings}
+                  t={t}
+                />
+              </Suspense>
             ) : currentView === 'ai' ? (
-              <AIChatView t={t} />
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <AIChatView t={t} />
+              </Suspense>
+            ) : currentView === 'apiTester' ? (
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <ApiTesterView t={t} />
+              </Suspense>
+            ) : currentView === 'connectivity' ? (
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <ConnectivityTesterView t={t} />
+              </Suspense>
             ) : currentView === 'patches' ? (
-              <PatchFilesView t={t} language={language} />
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <PatchFilesView t={t} language={language} />
+              </Suspense>
             ) : currentView === 'about' ? (
-              <AboutView t={t} />
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <AboutView t={t} />
+              </Suspense>
             ) : (
               <>
                 <div className="mb-6 flex items-center justify-between">
@@ -469,7 +539,7 @@ export default function App() {
 
                 {apps.length > 0 ? (
                   programSettings.dashboardLayout === 'list' ? (
-                    <div className="space-y-3 pb-8">
+                    <div className="min-w-0 space-y-3 pb-8">
                       {apps.map(app => (
                         <AppListItem
                           key={app.config.id}
@@ -537,7 +607,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.5.0 - Made By Victor Samuel</span>
+        <span>Control Panel - Applications Dashboard v2.6.0 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

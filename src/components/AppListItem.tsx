@@ -34,7 +34,7 @@ export default function AppListItem({ app, hasError, isSelected, onSelect, onSta
 
   return (
     <article
-      className={`grid min-h-[78px] cursor-pointer grid-cols-[minmax(180px,1.2fr)_minmax(120px,0.7fr)_minmax(160px,1fr)_136px] items-center gap-4 rounded-lg border bg-white px-5 py-4 shadow-sm transition-all ${
+      className={`grid min-h-[78px] w-full min-w-0 cursor-pointer grid-cols-[minmax(0,1.4fr)_minmax(0,0.6fr)_minmax(0,1fr)_auto] items-center gap-4 rounded-lg border bg-white px-5 py-4 shadow-sm transition-all ${
         isSelected
           ? 'border-blue-500 shadow-[0_0_0_1px_rgba(0,149,235,0.15)]'
           : 'border-[#cfd8df] hover:border-blue-300 hover:shadow-md'
@@ -48,12 +48,12 @@ export default function AppListItem({ app, hasError, isSelected, onSelect, onSta
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className={`h-2.5 w-2.5 rounded-full ${statusTone}`} />
-        <span className="text-sm text-gray-500">{statusLabel}</span>
+      <div className="flex min-w-0 items-center gap-2">
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${statusTone}`} />
+        <span className="truncate text-sm text-gray-500">{statusLabel}</span>
       </div>
 
-      <div className="truncate text-sm text-gray-500">
+      <div className="min-w-0 truncate text-sm text-gray-500">
         {customLink ? customLink : displayPort ? `${t.portTitle} ${displayPort}` : app.config.cwd || '-'}
       </div>
 

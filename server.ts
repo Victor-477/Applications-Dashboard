@@ -12,6 +12,7 @@ import {
   getDefaultSettings,
   normalizeAccentColor,
   normalizeDashboardLayout,
+  normalizeFeatureFlag,
   normalizeHomepageMode,
   normalizeThemeMode,
   publicSettings
@@ -787,6 +788,9 @@ app.put('/api/settings', async (req, res) => {
     themeMode: normalizeThemeMode(req.body.themeMode || current.themeMode),
     accentColor: normalizeAccentColor(req.body.accentColor, current.accentColor),
     dashboardLayout: normalizeDashboardLayout(req.body.dashboardLayout || current.dashboardLayout),
+    aiChatEnabled: normalizeFeatureFlag(req.body.aiChatEnabled, current.aiChatEnabled),
+    apiTesterEnabled: normalizeFeatureFlag(req.body.apiTesterEnabled, current.apiTesterEnabled),
+    connectivityTesterEnabled: normalizeFeatureFlag(req.body.connectivityTesterEnabled, current.connectivityTesterEnabled),
   };
 
   await saveSettings(next);
@@ -831,9 +835,211 @@ app.delete('/api/homepage-template', async (req, res) => {
   res.json({ custom: false });
 });
 
+/**
+ * Advanced feature: performs a connectivity probe against a host/port using one
+ * of TCP, HTTP(S), or system ping. Used by the Tests and Connectivity page to
+ * quickly verify whether a device or service is reachable from this machine.
+ */
+app.post('/api/connectivity-test', async (req, res) => {
+  const settings = await getSettings();
+  if (!settings.connectivityTesterEnabled) {
+    res.status(403).json({ error: 'Connectivity Tester is disabled in Advanced Features.' });
+    return;
+  }
+
+  const host = String(req.body?.host || '').trim();
+  const rawPort = req.body?.port;
+  const protocol = String(req.body?.protocol || 'tcp').trim().toLowerCase();
+  const allowedProtocols = ['tcp', 'http', 'https', 'ping'];
+  if (!allowedProtocols.includes(protocol)) {
+    res.status(400).json({ error: `Unsupported protocol: ${protocol}` });
+    return;
+  }
+  if (!host) {
+    res.status(400).json({ error: 'Host or IP address is required.' });
+    return;
+  }
+  const port = rawPort === '' || rawPort === undefined || rawPort === null
+    ? undefined
+    : Number(rawPort);
+  if (protocol !== 'ping' && (!Number.isFinite(port as number) || (port as number) <= 0 || (port as number) > 65535)) {
+    res.status(400).json({ error: 'A valid port between 1 and 65535 is required.' });
+    return;
+  }
+
+  const timeoutMs = Math.min(Math.max(Number(req.body?.timeoutMs) || 4000, 500), 15000);
+  const startedAt = Date.now();
+
+  if (protocol === 'tcp') {
+    const result = await new Promise<{ ok: boolean; message: string }>((resolve) => {
+      const socket = new net.Socket();
+      let settled = false;
+      const finish = (ok: boolean, message: string) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        resolve({ ok, message });
+      };
+      socket.setTimeout(timeoutMs);
+      socket.once('connect', () => finish(true, `TCP handshake with ${host}:${port} succeeded.`));
+      socket.once('timeout', () => finish(false, `Connection to ${host}:${port} timed out after ${timeoutMs} ms.`));
+      socket.once('error', (error: NodeJS.ErrnoException) => {
+        const reason = error.code ? `${error.code}: ${error.message}` : error.message;
+        finish(false, `Connection to ${host}:${port} failed. ${reason}`);
+      });
+      try { socket.connect(port as number, host); } catch (error) { finish(false, String((error as any)?.message || error)); }
+    });
+    res.json({ ...result, elapsedMs: Date.now() - startedAt, protocol, host, port });
+    return;
+  }
+
+  if (protocol === 'http' || protocol === 'https') {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const target = `${protocol}://${host}:${port}/`;
+      const response = await fetch(target, { method: 'HEAD', signal: controller.signal });
+      res.json({
+        ok: response.ok || response.status < 500,
+        message: `HTTP ${response.status} ${response.statusText || ''} from ${target}`.trim(),
+        elapsedMs: Date.now() - startedAt,
+        protocol,
+        host,
+        port,
+      });
+    } catch (error) {
+      const aborted = (error as any)?.name === 'AbortError';
+      res.json({
+        ok: false,
+        message: aborted
+          ? `HTTP request to ${host}:${port} timed out after ${timeoutMs} ms.`
+          : `HTTP request failed: ${String((error as any)?.message || error)}`,
+        elapsedMs: Date.now() - startedAt,
+        protocol,
+        host,
+        port,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+    return;
+  }
+
+  // ping protocol — uses the system ping command.
+  const pingArgs = process.platform === 'win32'
+    ? ['-n', '2', '-w', String(timeoutMs), host]
+    : ['-c', '2', '-W', String(Math.ceil(timeoutMs / 1000)), host];
+
+  const pingResult = await new Promise<{ ok: boolean; message: string }>((resolve) => {
+    execFile('ping', pingArgs, { timeout: timeoutMs + 2000, windowsHide: true }, (error, stdout, stderr) => {
+      const output = String(stdout || stderr || '').trim();
+      if (error) {
+        resolve({ ok: false, message: output || `Ping failed: ${(error as any).message}` });
+        return;
+      }
+      resolve({ ok: true, message: output.split('\n').slice(-6).join('\n') });
+    });
+  });
+
+  res.json({ ...pingResult, elapsedMs: Date.now() - startedAt, protocol, host, port: port ?? null });
+});
+
+/**
+ * Advanced feature: proxies an HTTP request from the panel to any target the
+ * user specifies (typically to test local APIs). Gated by the apiTesterEnabled
+ * feature flag and enforces a hard timeout so slow endpoints cannot block the
+ * server thread indefinitely.
+ */
+app.post('/api/api-tester', async (req, res) => {
+  const settings = await getSettings();
+  if (!settings.apiTesterEnabled) {
+    res.status(403).json({ error: 'API Tester is disabled in Advanced Features.' });
+    return;
+  }
+
+  const url = String(req.body?.url || '').trim();
+  const method = String(req.body?.method || 'GET').trim().toUpperCase();
+  const allowedMethods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'];
+  if (!allowedMethods.includes(method)) {
+    res.status(400).json({ error: `Unsupported HTTP method: ${method}` });
+    return;
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    res.status(400).json({ error: 'A valid URL (with protocol) is required.' });
+    return;
+  }
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    res.status(400).json({ error: 'Only http and https protocols are supported.' });
+    return;
+  }
+
+  const headers: Record<string, string> = {};
+  if (req.body?.headers && typeof req.body.headers === 'object') {
+    for (const [key, value] of Object.entries(req.body.headers as Record<string, unknown>)) {
+      const k = String(key || '').trim();
+      const v = String(value ?? '').trim();
+      if (k) headers[k] = v;
+    }
+  }
+
+  const hasBody = !['GET', 'HEAD'].includes(method);
+  const body = hasBody && typeof req.body?.body === 'string' && req.body.body.length > 0
+    ? req.body.body
+    : undefined;
+
+  const timeoutMs = Math.min(Math.max(Number(req.body?.timeoutMs) || 15000, 500), 30000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(parsedUrl.toString(), {
+      method,
+      headers,
+      body,
+      signal: controller.signal,
+    });
+    const elapsedMs = Date.now() - startedAt;
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => { responseHeaders[key] = value; });
+    const text = await response.text();
+    res.json({
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+      body: text,
+      elapsedMs,
+    });
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    const aborted = (error as any)?.name === 'AbortError';
+    res.status(200).json({
+      ok: false,
+      status: 0,
+      statusText: aborted ? 'Request timed out' : 'Request failed',
+      headers: {},
+      body: aborted ? `Request aborted after ${timeoutMs} ms.` : String((error as any)?.message || error),
+      elapsedMs,
+      networkError: true,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+});
+
 app.post('/api/ai-chat', async (req, res) => {
   const settings = await getSettings();
   const messages = clampChatMessages(req.body.messages);
+
+  if (!settings.aiChatEnabled) {
+    res.status(403).json({ error: 'AI Chat is disabled in Advanced Features.' });
+    return;
+  }
 
   if (!settings.aiApiKey) {
     res.status(400).json({ error: 'AI API key is not configured.' });

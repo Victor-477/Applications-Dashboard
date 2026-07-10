@@ -11,11 +11,25 @@ export function getDefaultSettings(): ProgramSettingsFile {
     themeMode: 'light',
     accentColor: '#009dea',
     dashboardLayout: 'cards',
+    aiChatEnabled: true,
+    apiTesterEnabled: false,
+    connectivityTesterEnabled: false,
   };
 }
 
 export function normalizeThemeMode(value: unknown): 'light' | 'dark' {
   return value === 'dark' ? 'dark' : 'light';
+}
+
+/**
+ * Coerces a feature flag from arbitrary input. A missing/undefined value falls
+ * back to the previous state, so disabling a feature never wipes its saved
+ * configuration (e.g. AI provider or API key).
+ */
+export function normalizeFeatureFlag(value: unknown, fallback: boolean): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === undefined || value === null) return fallback;
+  return Boolean(value);
 }
 
 /** HomePage source: the panel's own internal page, or a user-provided URL. Defaults to internal. */
@@ -44,5 +58,8 @@ export function publicSettings(settings: ProgramSettingsFile) {
     themeMode: normalizeThemeMode(settings.themeMode),
     accentColor: normalizeAccentColor(settings.accentColor),
     dashboardLayout: normalizeDashboardLayout(settings.dashboardLayout),
+    aiChatEnabled: normalizeFeatureFlag(settings.aiChatEnabled, true),
+    apiTesterEnabled: normalizeFeatureFlag(settings.apiTesterEnabled, false),
+    connectivityTesterEnabled: normalizeFeatureFlag(settings.connectivityTesterEnabled, false),
   };
 }

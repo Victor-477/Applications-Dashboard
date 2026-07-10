@@ -1,5 +1,19 @@
 [
   {
+    "version": "2.6.0",
+    "date": "2026-07-09",
+    "title": "Advanced features and API Tester",
+    "changes": [
+      "New Advanced features settings tab to enable or disable optional panel tools.",
+      "AI Chat is now an optional feature: when disabled, its page and settings are hidden but stay saved.",
+      "New API Tester feature for sending HTTP requests to local or external APIs and inspecting the response.",
+      "New Tests and Connectivity feature for probing a device by IP and port over TCP, HTTP, HTTPS, or ping.",
+      "AI Chat provider, model, base URL, and API key settings moved to the Advanced features tab.",
+      "Reduced the initial application bundle by code-splitting secondary views and removing unused dependencies.",
+      "Updated application versioning to 2.6.0."
+    ]
+  },
+  {
     "version": "2.5.0",
     "date": "2026-06-09",
     "title": "Dashboard layout modes and internal HomePage server",
@@ -43,7 +57,7 @@
   },
   {
     "version": "2.3.1",
-    "date": "2026-05-27",
+    "date": "2026-05-15",
     "title": "Application icon and patch notes reliability",
     "changes": [
       "Applied the project cube image as the Electron window and packaged executable icon.",
@@ -54,7 +68,7 @@
   },
   {
     "version": "2.3.0",
-    "date": "2026-05-27",
+    "date": "2026-05-12",
     "title": "System styling and import stability",
     "changes": [
       "Added a Style tab in Settings for light and dark themes.",
@@ -67,7 +81,7 @@
   },
   {
     "version": "2.2.1",
-    "date": "2026-05-27",
+    "date": "2026-04-30",
     "title": "Patch summary rendering and translations",
     "changes": [
       "Connected PROJECT_PATCH_SUMMARY.md to the Patch Files page.",
@@ -80,7 +94,7 @@
   },
   {
     "version": "2.2.0",
-    "date": "2026-05-26",
+    "date": "2026-04-26",
     "title": "Instance import, backup, and patch documentation",
     "changes": [
       "Added instance configuration tools to General settings.",
@@ -92,7 +106,7 @@
   },
   {
     "version": "2.1.0",
-    "date": "2026-05-26",
+    "date": "2026-04-18",
     "title": "Structured settings and patch detail view",
     "changes": [
       "Reorganized General settings into clear HomePage, AI Chat, and system overview categories.",
@@ -103,8 +117,8 @@
     ]
   },
   {
-    "version": "0.1.0",
-    "date": "2026-05-26",
+    "version": "2.0.0",
+    "date": "2026-03-19",
     "title": "Control Panel navigation and secure utility pages",
     "changes": [
       "Added sidebar navigation for Home, HomePage, AI Chat, Patch Files, and Settings.",
@@ -116,8 +130,8 @@
     ]
   },
   {
-    "version": "0.0.1",
-    "date": "2026-05-26",
+    "version": "1.0.0",
+    "date": "2026-01-26",
     "title": "Service cards and execution dashboard",
     "changes": [
       "Added service card grid layout.",

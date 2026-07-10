@@ -17,9 +17,9 @@ export interface AppConfig {
   advancedShell?: boolean;
 }
 
-export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about';
+export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about' | 'apiTester' | 'connectivity';
 
-export type SettingsTab = 'apps' | 'logs' | 'general' | 'style';
+export type SettingsTab = 'apps' | 'logs' | 'general' | 'style' | 'advanced';
 
 export type ThemeMode = 'light' | 'dark';
 export type DashboardLayout = 'cards' | 'list';
@@ -35,6 +35,9 @@ export interface ProgramSettings {
   themeMode: ThemeMode;
   accentColor: string;
   dashboardLayout: DashboardLayout;
+  aiChatEnabled: boolean;
+  apiTesterEnabled: boolean;
+  connectivityTesterEnabled: boolean;
 }
 
 export interface ChatMessage {

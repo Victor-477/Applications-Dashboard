@@ -29,6 +29,9 @@ export interface ProgramSettingsFile {
   themeMode: 'light' | 'dark';
   accentColor: string;
   dashboardLayout: 'cards' | 'list';
+  aiChatEnabled: boolean;
+  apiTesterEnabled: boolean;
+  connectivityTesterEnabled: boolean;
 }
 
 export interface SystemLogEntry {

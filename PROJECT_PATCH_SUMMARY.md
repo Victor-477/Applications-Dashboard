@@ -4,9 +4,22 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.5.0
-- Date: 2026-06-09
-- Main area: dashboard layout modes, internal HomePage template serving, per-instance web links, and cleaner instance actions.
+- Version: 2.6.0
+- Date: 2026-07-09
+- Main area: Advanced features settings tab, optional AI Chat feature, new API Tester tool, new Tests and Connectivity tool, and a lighter frontend bundle.
+
+## 2.6.0
+
+- Added an Advanced features tab in Settings for enabling or disabling optional panel tools.
+- Turned AI Chat into an optional feature. When disabled, its sidebar page and settings are hidden but saved values remain on disk.
+- Added a new API Tester feature: a page for sending HTTP requests to local or external APIs and inspecting the response.
+- Added a new Tests and Connectivity feature: a page for probing a device or service by IP and port over TCP, HTTP, HTTPS, or ping.
+- Moved AI Chat provider, model, base URL, and API key settings from the General tab to the new Advanced features tab.
+- Added backend gating for `/api/ai-chat`, `/api/api-tester`, and `/api/connectivity-test`, so each refuses work when its feature flag is off.
+- Code-split secondary views (Settings, AI Chat, API Tester, Tests and Connectivity, Patch Files, About) with `React.lazy`, cutting the initial bundle by roughly 11 percent.
+- Removed unused runtime dependencies (`motion`, `@google/genai`) so the packaged Windows build is smaller and installs faster.
+- Memoized the accent color theme variables so the main App shell does not re-render them on every state update.
+- Updated application versioning to 2.6.0.
 
 ## 2.5.0
 
