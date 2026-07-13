@@ -8,6 +8,10 @@ export interface AppConfig {
   port: string;
   cwd: string;
   webLink?: string;
+  /** When true, the instance runs inside the panel's internal instances folder. */
+  useInternalFolder?: boolean;
+  /** Subfolder name inside the internal instances folder (defaults to the instance id). */
+  internalFolder?: string;
   dependsOn?: string[];
   shell?: boolean;
   enabled?: boolean;

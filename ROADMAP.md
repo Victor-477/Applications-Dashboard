@@ -22,14 +22,15 @@ Planned work between the current 2.6.0 release and the 3.0.0 milestone. Each ver
 - [x] New **General settings master toggle** for Advanced Features — turns all optional tools off at once without losing their individual settings.
 - [x] Translations, patch notes, version bump.
 
-## v2.9 — Internal instance folder
+## v2.9 — Internal instance folder ✅
 
 **Focus:** stop touching arbitrary directories on the user's machine when the user does not need to.
 
-- [ ] Bundled **internal instances folder** that ships with the app (or is created on first run under the user-data directory).
-- [ ] Instance form gains a "Store inside the app folder" option that redirects `cwd` and script files to this internal folder.
-- [ ] Import/export and packaging know about the internal folder.
-- [ ] Translations, patch notes, version bump.
+- [x] Bundled **internal instances folder** created beside the executable on first run.
+- [x] Instance form gains a "Store inside internal folder" option that redirects `cwd` (and advanced secondary cwd) to this internal folder.
+- [x] Settings > General section for browsing, creating, and deleting subfolders under the internal folder.
+- [x] Import/export normalizer preserves `useInternalFolder` and `internalFolder`.
+- [x] Translations, patch notes, version bump.
 
 ## v3.0 — Scripts, autostart, alerts, multi-platform
 

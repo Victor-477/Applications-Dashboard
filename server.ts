@@ -35,8 +35,16 @@ const PATCH_NOTES_FILE = path.join(PANEL_DIR, 'patch-notes.json');
 const PATCH_SUMMARY_FILE = path.join(PANEL_DIR, 'PROJECT_PATCH_SUMMARY.md');
 const PACKAGE_FILE = path.join(PANEL_DIR, 'package.json');
 const HOMEPAGE_TEMPLATE_FILE = path.join(PANEL_DIR, 'homepage.html');
+const INTERNAL_INSTANCES_DIR = path.join(PANEL_DIR, 'instances');
 
 const runningProcesses = new Map<string, ChildProcess[]>();
+
+// Create the internal instances folder on startup so instances that opt into
+// it always find their working directory ready. Failure is non-fatal — the
+// endpoints will surface it to the user.
+try {
+  require('fs').mkdirSync(INTERNAL_INSTANCES_DIR, { recursive: true });
+} catch { /* ignore */ }
 
 // Log history and active clients
 const logHistory = new Map<string, { timestamp: string; type: string; message: string }[]>();
@@ -88,6 +96,28 @@ function resolveCwd(cwd?: string) {
 
   const projectRelative = cwd.replace(/^(\.\.[\\/])+/, '');
   return path.resolve(PROJECT_ROOT, projectRelative);
+}
+
+/** Sanitize a subfolder name so it stays inside the internal instances folder. */
+function sanitizeInternalFolderName(name: string): string {
+  const cleaned = String(name || '').trim().replace(/[\\/]+/g, '-').replace(/[^A-Za-z0-9._-]/g, '_');
+  return cleaned.slice(0, 80) || 'instance';
+}
+
+/**
+ * Resolve the working directory of an instance. When the instance opts into
+ * the internal instances folder, its cwd is anchored there so the panel does
+ * not need to reach into arbitrary user directories. Falls back to the regular
+ * resolveCwd behaviour otherwise.
+ */
+function resolveInstanceCwd(config: AppConfig): string {
+  if (config.useInternalFolder) {
+    const sub = sanitizeInternalFolderName(config.internalFolder || config.id || 'instance');
+    const target = path.join(INTERNAL_INSTANCES_DIR, sub);
+    try { require('fs').mkdirSync(target, { recursive: true }); } catch { /* ignore */ }
+    return target;
+  }
+  return resolveCwd(config.cwd);
 }
 
 function findProjectRoot(start: string) {
@@ -610,7 +640,7 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
     return { success: true, external: true };
   }
 
-  const cwd = resolveCwd(appConfig.cwd);
+  const cwd = resolveInstanceCwd(appConfig);
   const env = {
     ...process.env,
     PORT: runtimePort || appConfig.port || process.env.PORT,
@@ -636,7 +666,9 @@ async function startConfiguredApp(id: string, apps: any[], visited = new Set<str
       id,
       command: appConfig.advancedCommand,
       args: appConfig.advancedArgs,
-      cwd: resolveCwd(appConfig.secondaryCwd || appConfig.cwd),
+      cwd: appConfig.useInternalFolder
+        ? resolveInstanceCwd(appConfig)
+        : resolveCwd(appConfig.secondaryCwd || appConfig.cwd),
       shell: appConfig.advancedShell !== false,
       env,
       label: 'advanced'
@@ -843,6 +875,72 @@ app.delete('/api/homepage-template', async (req, res) => {
     if ((error as any).code !== 'ENOENT') throw error;
   }
   res.json({ custom: false });
+});
+
+/**
+ * Managed internal folder for instances. Users can drop scripts and support
+ * files here instead of having the panel reach into arbitrary user directories.
+ * All endpoints refuse paths that try to escape the folder so a malicious
+ * client cannot list or delete files outside it.
+ */
+function safeInternalPath(subpath: string): string | undefined {
+  const cleaned = String(subpath || '').trim();
+  if (!cleaned) return INTERNAL_INSTANCES_DIR;
+  const resolved = path.resolve(INTERNAL_INSTANCES_DIR, cleaned);
+  const relativeToRoot = path.relative(INTERNAL_INSTANCES_DIR, resolved);
+  if (relativeToRoot.startsWith('..') || path.isAbsolute(relativeToRoot)) return undefined;
+  return resolved;
+}
+
+app.get('/api/internal-folder', async (req, res) => {
+  try {
+    await fs.mkdir(INTERNAL_INSTANCES_DIR, { recursive: true });
+    const entries = await fs.readdir(INTERNAL_INSTANCES_DIR, { withFileTypes: true });
+    const items = await Promise.all(entries.map(async entry => {
+      const target = path.join(INTERNAL_INSTANCES_DIR, entry.name);
+      let size = 0;
+      try {
+        const stats = await fs.stat(target);
+        size = entry.isDirectory() ? 0 : stats.size;
+      } catch { /* ignore */ }
+      return { name: entry.name, isDirectory: entry.isDirectory(), size };
+    }));
+    res.json({ path: INTERNAL_INSTANCES_DIR, entries: items });
+  } catch (error) {
+    res.status(500).json({ error: `Could not read internal folder: ${(error as any)?.message || error}` });
+  }
+});
+
+app.post('/api/internal-folder/mkdir', async (req, res) => {
+  const name = sanitizeInternalFolderName(String(req.body?.name || '').trim());
+  const target = safeInternalPath(name);
+  if (!target) {
+    res.status(400).json({ error: 'Invalid folder name.' });
+    return;
+  }
+  try {
+    await fs.mkdir(target, { recursive: true });
+    pushSystemLog(`Internal folder created: ${name}`, 'info', 'internal-folder');
+    res.json({ ok: true, name });
+  } catch (error) {
+    res.status(500).json({ error: `Could not create folder: ${(error as any)?.message || error}` });
+  }
+});
+
+app.delete('/api/internal-folder/entry', async (req, res) => {
+  const name = String(req.query.name || '').trim();
+  const target = safeInternalPath(name);
+  if (!target || target === INTERNAL_INSTANCES_DIR) {
+    res.status(400).json({ error: 'Invalid entry name.' });
+    return;
+  }
+  try {
+    await fs.rm(target, { recursive: true, force: true });
+    pushSystemLog(`Internal folder entry removed: ${name}`, 'info', 'internal-folder');
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: `Could not delete entry: ${(error as any)?.message || error}` });
+  }
 });
 
 /**
@@ -1258,11 +1356,17 @@ app.post('/api/apps/import', async (req, res) => {
 
 app.post('/api/apps', async (req, res) => {
   const advancedEnabled = Boolean(req.body.advancedEnabled);
+  const useInternalFolder = Boolean(req.body.useInternalFolder);
+  const id = crypto.randomUUID();
   const newApp = {
-    id: crypto.randomUUID(),
+    id,
     ...req.body,
     enabled: req.body.enabled !== false,
     advancedEnabled,
+    useInternalFolder,
+    internalFolder: useInternalFolder
+      ? sanitizeInternalFolderName(String(req.body.internalFolder || id))
+      : String(req.body.internalFolder || ''),
     alternatePorts: advancedEnabled ? (req.body.alternatePorts || []) : [],
     secondaryCwd: advancedEnabled ? (req.body.secondaryCwd || '') : '',
     advancedCommand: advancedEnabled ? (req.body.advancedCommand || '') : '',
@@ -1286,6 +1390,7 @@ app.put('/api/apps/:id', async (req, res) => {
   }
 
   const current = apps[index];
+  const useInternalFolder = Boolean(req.body.useInternalFolder);
   const updated = {
     ...current,
     name: req.body.name,
@@ -1294,6 +1399,10 @@ app.put('/api/apps/:id', async (req, res) => {
     port: req.body.port,
     cwd: req.body.cwd,
     webLink: String(req.body.webLink || '').trim(),
+    useInternalFolder,
+    internalFolder: useInternalFolder
+      ? sanitizeInternalFolderName(String(req.body.internalFolder || current.internalFolder || id))
+      : String(req.body.internalFolder || current.internalFolder || ''),
     dependsOn: req.body.dependsOn || [],
     shell: req.body.shell,
     id,

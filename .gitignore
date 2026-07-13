@@ -11,3 +11,4 @@ coverage/
 settings.json
 homepage.html
 .claude/
+instances/

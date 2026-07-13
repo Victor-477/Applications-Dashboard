@@ -28,6 +28,8 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
     port: initialConfig?.port || '',
     cwd: initialConfig?.cwd || '',
     webLink: initialConfig?.webLink || '',
+    useInternalFolder: initialConfig?.useInternalFolder || false,
+    internalFolder: initialConfig?.internalFolder || '',
     dependsOn: initialConfig?.dependsOn?.join(', ') || '',
     shell: initialConfig?.shell !== false,
     advancedEnabled: initialConfig?.advancedEnabled || false,
@@ -52,8 +54,10 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
       command: formData.command.trim(),
       args: formData.args.trim(),
       port: formData.port.trim(),
-      cwd: formData.cwd.trim(),
+      cwd: formData.useInternalFolder ? '' : formData.cwd.trim(),
       webLink: formData.webLink.trim(),
+      useInternalFolder: formData.useInternalFolder,
+      internalFolder: formData.internalFolder.trim(),
       dependsOn: splitList(formData.dependsOn),
       shell: formData.shell,
     };
@@ -137,9 +141,36 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
                       placeholder={t.form.directoryPlaceholder}
                       value={formData.cwd}
                       onChange={e => setFormData({ ...formData, cwd: e.target.value })}
+                      disabled={formData.useInternalFolder}
                     />
                   </label>
                 </div>
+
+                <label className="flex items-center justify-between border border-gray-200 px-3 py-3">
+                  <span className="min-w-0 pr-3">
+                    <span className="block text-sm font-medium text-gray-700">{t.form.useInternalFolder}</span>
+                    <span className="mt-1 block text-xs font-normal text-gray-500">{t.form.useInternalFolderHelp}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={formData.useInternalFolder}
+                    onChange={e => setFormData({ ...formData, useInternalFolder: e.target.checked })}
+                  />
+                </label>
+
+                {formData.useInternalFolder && (
+                  <label className="block">
+                    <span className="mb-1 block text-xs font-bold text-gray-400">{t.form.internalFolder}</span>
+                    <input
+                      type="text"
+                      className={fieldClass}
+                      placeholder={t.form.internalFolderPlaceholder}
+                      value={formData.internalFolder}
+                      onChange={e => setFormData({ ...formData, internalFolder: e.target.value })}
+                    />
+                  </label>
+                )}
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold text-gray-400">{t.form.command}</span>

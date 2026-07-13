@@ -4,9 +4,19 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.8.0
-- Date: 2026-07-23
-- Main area: mini web server advanced feature and master toggle for all advanced features.
+- Version: 2.9.0
+- Date: 2026-07-30
+- Main area: internal folder for instance files, so the panel stops reaching into arbitrary user directories.
+
+## 2.9.0
+
+- Added an `instances/` folder that ships with the panel and lives beside the executable. Users can drop scripts, static assets, and support files here instead of using directories elsewhere on the computer.
+- Added a **Store inside internal folder** option to the instance form. When enabled, the instance's working directory (and its advanced secondary cwd) is anchored to a sanitized subfolder inside the internal folder, ignoring the free-text Directory input.
+- Added a **Settings > General > Internal instances folder** section that shows the folder path, lists its entries, and lets users create or delete subfolders.
+- Added backend endpoints `GET /api/internal-folder`, `POST /api/internal-folder/mkdir`, and `DELETE /api/internal-folder/entry`. Every endpoint refuses paths that try to escape the folder root.
+- Import/export normalizer preserves `useInternalFolder` and `internalFolder` so backups stay compatible with existing instances.
+- Translations in six languages (en, pt, zh, de, es, ja) for the new form field, settings section, and patch notes.
+- Updated application versioning to 2.9.0.
 
 ## 2.8.0
 

@@ -6,6 +6,8 @@ export interface AppConfig {
   port: string;
   cwd: string;
   webLink?: string;
+  useInternalFolder?: boolean;
+  internalFolder?: string;
   dependsOn?: string[];
   shell?: boolean;
   enabled?: boolean;

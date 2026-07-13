@@ -1,5 +1,17 @@
 [
   {
+    "version": "2.9.0",
+    "date": "2026-07-30",
+    "title": "Internal instance folder",
+    "changes": [
+      "New panel-managed internal folder (`instances/`) where users can drop scripts and support files instead of exposing arbitrary directories on the computer.",
+      "Instance form gains a `Store inside internal folder` option that anchors the working directory to a sanitized subfolder inside the internal folder.",
+      "New Settings > General > Internal instances folder section listing the folder contents, with actions to create and delete subfolders.",
+      "Import/export preserves the new fields so backups stay compatible.",
+      "Updated application versioning to 2.9.0."
+    ]
+  },
+  {
     "version": "2.8.0",
     "date": "2026-07-23",
     "title": "Mini web server and Advanced Features master toggle",

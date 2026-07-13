@@ -30,6 +30,7 @@ export function normalizeImportedApp(raw: any, index: number, usedIds: Set<strin
   usedIds.add(id);
 
   const advancedEnabled = Boolean(raw?.advancedEnabled);
+  const useInternalFolder = Boolean(raw?.useInternalFolder);
   return {
     id,
     name,
@@ -38,6 +39,8 @@ export function normalizeImportedApp(raw: any, index: number, usedIds: Set<strin
     port: normalizeText(raw?.port),
     cwd: normalizeText(raw?.cwd),
     webLink: normalizeText(raw?.webLink),
+    useInternalFolder,
+    internalFolder: normalizeText(raw?.internalFolder),
     dependsOn: normalizeStringList(raw?.dependsOn),
     shell: raw?.shell !== false,
     enabled: raw?.enabled !== false,

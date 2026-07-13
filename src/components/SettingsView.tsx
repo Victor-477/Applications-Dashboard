@@ -75,6 +75,9 @@ export default function SettingsView({
   const [customColorDraft, setCustomColorDraft] = useState(currentProgramSettings.accentColor.replace('#', ''));
   const [homepageTemplateCustom, setHomepageTemplateCustom] = useState(false);
   const [homepageTemplateError, setHomepageTemplateError] = useState('');
+  const [internalFolder, setInternalFolder] = useState<{ path: string; entries: Array<{ name: string; isDirectory: boolean; size: number }> } | null>(null);
+  const [internalFolderError, setInternalFolderError] = useState('');
+  const [newInternalFolderName, setNewInternalFolderName] = useState('');
 
   const summary = useMemo(() => {
     return apps.reduce(
@@ -108,6 +111,11 @@ export default function SettingsView({
       } catch {
         setHomepageTemplateCustom(false);
       }
+      try {
+        const folderRes = await fetch('/api/internal-folder');
+        const folderState = await folderRes.json();
+        if (folderRes.ok) setInternalFolder(folderState);
+      } catch { /* ignore */ }
       setSettingsForm(prev => ({
         ...prev,
         homepageMode: settings.homepageMode || 'internal',
@@ -348,6 +356,48 @@ export default function SettingsView({
 
   const handleHomepagePreview = () => {
     window.open('/internal-homepage', '_blank', 'noopener,noreferrer');
+  };
+
+  const refreshInternalFolder = async () => {
+    setInternalFolderError('');
+    try {
+      const res = await fetch('/api/internal-folder');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'load failed');
+      setInternalFolder(data);
+    } catch {
+      setInternalFolderError(t.settings.internalFolderLoadError);
+    }
+  };
+
+  const handleCreateInternalFolder = async () => {
+    const name = newInternalFolderName.trim();
+    if (!name) return;
+    setInternalFolderError('');
+    try {
+      const res = await fetch('/api/internal-folder/mkdir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'create failed');
+      setNewInternalFolderName('');
+      await refreshInternalFolder();
+    } catch {
+      setInternalFolderError(t.settings.internalFolderCreateError);
+    }
+  };
+
+  const handleDeleteInternalEntry = async (name: string) => {
+    setInternalFolderError('');
+    try {
+      const res = await fetch(`/api/internal-folder/entry?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      await refreshInternalFolder();
+    } catch {
+      setInternalFolderError(t.settings.internalFolderDeleteError);
+    }
   };
 
   return (
@@ -644,6 +694,70 @@ export default function SettingsView({
 
               <section className="border border-gray-200 bg-white">
                 <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.internalFolderCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.internalFolderCategoryDescription}</p>
+                </div>
+                <div className="space-y-4 px-5 py-5">
+                  <div>
+                    <span className="block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.internalFolderPath}</span>
+                    <p className="mt-1 break-all font-mono text-xs text-gray-700">{internalFolder?.path || '-'}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      value={newInternalFolderName}
+                      onChange={event => setNewInternalFolderName(event.target.value)}
+                      placeholder={t.settings.internalFolderNewPlaceholder}
+                      className="flex-1 border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateInternalFolder}
+                      disabled={!newInternalFolderName.trim()}
+                      className="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                      {t.settings.internalFolderCreate}
+                    </button>
+                  </div>
+
+                  <div className="border border-gray-200">
+                    <div className="grid grid-cols-[minmax(0,1fr)_90px_90px] border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold uppercase tracking-wide text-gray-500">
+                      <span>{t.settings.internalFolderColName}</span>
+                      <span>{t.settings.internalFolderColType}</span>
+                      <span className="text-right">{t.settings.internalFolderColActions}</span>
+                    </div>
+                    {internalFolder && internalFolder.entries.length > 0 ? (
+                      internalFolder.entries.map(entry => (
+                        <div key={entry.name} className="grid grid-cols-[minmax(0,1fr)_90px_90px] items-center border-b border-gray-100 px-3 py-2 text-xs">
+                          <span className="truncate font-mono text-gray-800" title={entry.name}>{entry.name}</span>
+                          <span className="text-gray-500">{entry.isDirectory ? t.settings.internalFolderTypeFolder : t.settings.internalFolderTypeFile}</span>
+                          <span className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteInternalEntry(entry.name)}
+                              className="flex h-7 w-7 items-center justify-center rounded text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                              title={t.settings.internalFolderDelete}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-center text-xs text-gray-500">{t.settings.internalFolderEmpty}</div>
+                    )}
+                  </div>
+
+                  {internalFolderError && <p className="text-xs font-semibold text-red-600">{internalFolderError}</p>}
+
+                  <p className="border-l-2 border-blue-500 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-800">
+                    {t.settings.internalFolderNote}
+                  </p>
+                </div>
+              </section>
+
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
                   <h3 className="text-sm font-bold text-gray-900">{t.settings.instancesCategory}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t.settings.instancesCategoryDescription}</p>
                 </div>
@@ -724,7 +838,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.8.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v2.9.0</p>
                   </div>
                 </div>
               </section>
