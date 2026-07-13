@@ -30,6 +30,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
     webLink: initialConfig?.webLink || '',
     useInternalFolder: initialConfig?.useInternalFolder || false,
     internalFolder: initialConfig?.internalFolder || '',
+    autoStart: initialConfig?.autoStart || false,
     dependsOn: initialConfig?.dependsOn?.join(', ') || '',
     shell: initialConfig?.shell !== false,
     advancedEnabled: initialConfig?.advancedEnabled || false,
@@ -58,6 +59,7 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
       webLink: formData.webLink.trim(),
       useInternalFolder: formData.useInternalFolder,
       internalFolder: formData.internalFolder.trim(),
+      autoStart: formData.autoStart,
       dependsOn: splitList(formData.dependsOn),
       shell: formData.shell,
     };
@@ -225,6 +227,19 @@ export default function AppForm({ onClose, onSubmit, initialConfig, t }: AppForm
                     className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     checked={formData.shell}
                     onChange={e => setFormData({ ...formData, shell: e.target.checked })}
+                  />
+                </label>
+
+                <label className="flex items-center justify-between border border-gray-200 px-3 py-3">
+                  <span className="min-w-0 pr-3">
+                    <span className="block text-sm font-medium text-gray-700">{t.form.autoStart}</span>
+                    <span className="mt-1 block text-xs font-normal text-gray-500">{t.form.autoStartHelp}</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={formData.autoStart}
+                    onChange={e => setFormData({ ...formData, autoStart: e.target.checked })}
                   />
                 </label>
               </div>

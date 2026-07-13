@@ -41,6 +41,7 @@ export function normalizeImportedApp(raw: any, index: number, usedIds: Set<strin
     webLink: normalizeText(raw?.webLink),
     useInternalFolder,
     internalFolder: normalizeText(raw?.internalFolder),
+    autoStart: Boolean(raw?.autoStart),
     dependsOn: normalizeStringList(raw?.dependsOn),
     shell: raw?.shell !== false,
     enabled: raw?.enabled !== false,

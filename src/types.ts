@@ -8,6 +8,7 @@ export interface AppConfig {
   webLink?: string;
   useInternalFolder?: boolean;
   internalFolder?: string;
+  autoStart?: boolean;
   dependsOn?: string[];
   shell?: boolean;
   enabled?: boolean;
@@ -19,7 +20,27 @@ export interface AppConfig {
   advancedShell?: boolean;
 }
 
-export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about' | 'apiTester' | 'connectivity' | 'webServer';
+export type AppView = 'services' | 'settings' | 'ai' | 'patches' | 'about' | 'apiTester' | 'connectivity' | 'webServer' | 'scripts' | 'alerts';
+
+export type ScriptLanguage = 'python' | 'javascript' | 'rust';
+
+export interface Script {
+  id: string;
+  name: string;
+  language: ScriptLanguage;
+  source: string;
+  updatedAt: string;
+}
+
+export interface AlertRecord {
+  id: string;
+  timestamp: string;
+  severity: 'info' | 'warning' | 'error';
+  source: string;
+  message: string;
+  read: boolean;
+}
+
 
 export type SettingsTab = 'apps' | 'logs' | 'general' | 'style' | 'advanced';
 
@@ -46,6 +67,8 @@ export interface ProgramSettings {
   webServerEnabled: boolean;
   webServerPort: number;
   webServerRootFolder: string;
+  scriptsEnabled: boolean;
+  alertsEnabled: boolean;
 }
 
 export interface ChatMessage {

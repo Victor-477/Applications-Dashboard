@@ -2,6 +2,15 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+// This script targets Windows portable builds. On macOS and Linux the
+// electron-builder invocations use different tooling and typically run in
+// their own CI runners; refuse early with a hint so the failure is obvious.
+if (process.platform !== 'win32') {
+  console.error(`Portable packaging script is Windows-only (host is ${process.platform}).`);
+  console.error('For macOS/Linux, use "npx electron-builder --mac" or "--linux" on the target OS.');
+  process.exit(1);
+}
+
 const root = path.resolve(__dirname, '..');
 const electronDist = path.join(root, 'node_modules', 'electron', 'dist');
 const releaseDir = path.join(root, 'release', 'APPDashboard');

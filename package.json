@@ -1,7 +1,9 @@
 {
   "name": "application-dashboard",
   "private": true,
-  "version": "2.9.0",
+  "version": "3.0.0",
+  "description": "Applications Dashboard - Windows/macOS/Linux local control panel for running services and scripts.",
+  "author": "Victor Samuel <victorscosta47@gmail.com>",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -11,6 +13,9 @@
     "package:win": "node scripts/package-portable.cjs",
     "package:win:full": "npm run build && node scripts/package-portable.cjs",
     "package:win:zip": "npm run package:win:full && powershell -NoProfile -Command \"Compress-Archive -Path release/APPDashboard/* -DestinationPath release/APPDashboard-windows-portable.zip -Force\"",
+    "package:linux": "npm run build && electron-builder --linux --publish never",
+    "package:mac": "npm run build && electron-builder --mac --publish never",
+    "package:all": "npm run build && electron-builder -mwl --publish never",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "powershell -NoProfile -Command \"Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue\"",
@@ -32,8 +37,8 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.21",
-    "electron": "^33.4.11",
-    "electron-builder": "^25.1.8",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
@@ -54,6 +59,31 @@
     ],
     "win": {
       "target": "portable"
+    },
+    "mac": {
+      "target": "dir",
+      "icon": "public/ind40-logo.png",
+      "category": "public.app-category.developer-tools",
+      "identity": null
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "public/ind40-logo.png",
+      "category": "Development",
+      "artifactName": "APPDashboard-linux-${arch}.tar.gz",
+      "desktop": {
+        "entry": {
+          "Name": "Applications Dashboard",
+          "Comment": "Local control panel for services and scripts"
+        }
+      }
     }
   }
 }

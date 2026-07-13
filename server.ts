@@ -20,7 +20,7 @@ import {
   publicSettings
 } from './server/settingsUtils';
 import { clearExportedSystemLogs, getSystemLogsForExport, serializeSystemLogs } from './server/systemLogs';
-import type { AppConfig, ProgramSettingsFile, SystemLogEntry } from './server/types';
+import type { Alert, AppConfig, ProgramSettingsFile, Script, ScriptLanguage, SystemLogEntry } from './server/types';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -36,6 +36,8 @@ const PATCH_SUMMARY_FILE = path.join(PANEL_DIR, 'PROJECT_PATCH_SUMMARY.md');
 const PACKAGE_FILE = path.join(PANEL_DIR, 'package.json');
 const HOMEPAGE_TEMPLATE_FILE = path.join(PANEL_DIR, 'homepage.html');
 const INTERNAL_INSTANCES_DIR = path.join(PANEL_DIR, 'instances');
+const SCRIPTS_FILE = path.join(PANEL_DIR, 'scripts.json');
+const SCRIPTS_TMP_DIR = path.join(INTERNAL_INSTANCES_DIR, '.scripts-tmp');
 
 const runningProcesses = new Map<string, ChildProcess[]>();
 
@@ -50,6 +52,21 @@ try {
 const logHistory = new Map<string, { timestamp: string; type: string; message: string }[]>();
 const systemLogHistory: SystemLogEntry[] = [];
 const logClients = new Set<express.Response>();
+
+// In-memory alert center. Alerts are user-facing notifications kept in RAM so
+// panel restarts start clean; individual mark-as-read state is stored here too.
+const alerts: Alert[] = [];
+function pushAlert(severity: Alert['severity'], source: string, message: string) {
+  alerts.unshift({
+    id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    severity,
+    source,
+    message,
+    read: false,
+  });
+  if (alerts.length > 200) alerts.length = 200;
+}
 
 async function getApps(): Promise<AppConfig[]> {
   try {
@@ -716,6 +733,9 @@ function pushSystemLog(message: string, type: 'info' | 'error' | 'system' = 'inf
     message,
   });
   if (systemLogHistory.length > 2000) systemLogHistory.shift();
+  // System logs of type 'error' also raise an alert so the user sees them in
+  // the alert center without having to scan the log tab.
+  if (type === 'error') pushAlert('error', source, message);
 }
 
 function clampChatMessages(messages: any[]) {
@@ -833,6 +853,8 @@ app.put('/api/settings', async (req, res) => {
     webServerRootFolder: typeof req.body.webServerRootFolder === 'string'
       ? req.body.webServerRootFolder.trim()
       : current.webServerRootFolder,
+    scriptsEnabled: normalizeFeatureFlag(req.body.scriptsEnabled, current.scriptsEnabled),
+    alertsEnabled: normalizeFeatureFlag(req.body.alertsEnabled, current.alertsEnabled),
   };
 
   await saveSettings(next);
@@ -941,6 +963,197 @@ app.delete('/api/internal-folder/entry', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: `Could not delete entry: ${(error as any)?.message || error}` });
   }
+});
+
+/**
+ * Advanced feature: general-purpose script runner. Users can save small Python,
+ * JavaScript, or Rust snippets and run them from the panel. Scripts live in
+ * scripts.json; execution uses an ephemeral file under the internal folder so
+ * the panel does not touch other user directories.
+ */
+async function loadScripts(): Promise<Script[]> {
+  try {
+    const raw = await fs.readFile(SCRIPTS_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function saveScripts(list: Script[]): Promise<void> {
+  await fs.writeFile(SCRIPTS_FILE, JSON.stringify(list, null, 2), 'utf-8');
+}
+
+const SCRIPT_EXTS: Record<ScriptLanguage, string> = { python: '.py', javascript: '.js', rust: '.rs' };
+
+function isScriptLanguage(value: unknown): value is ScriptLanguage {
+  return value === 'python' || value === 'javascript' || value === 'rust';
+}
+
+app.get('/api/scripts', async (req, res) => {
+  const settings = await getSettings();
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.scriptsEnabled)) {
+    res.status(403).json({ error: 'Scripts are disabled in Advanced Features.' });
+    return;
+  }
+  res.json(await loadScripts());
+});
+
+app.post('/api/scripts', async (req, res) => {
+  const settings = await getSettings();
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.scriptsEnabled)) {
+    res.status(403).json({ error: 'Scripts are disabled in Advanced Features.' });
+    return;
+  }
+  const name = String(req.body?.name || '').trim();
+  const language = req.body?.language;
+  const source = String(req.body?.source || '');
+  if (!name || !isScriptLanguage(language)) {
+    res.status(400).json({ error: 'A name and a supported language (python, javascript, rust) are required.' });
+    return;
+  }
+  const list = await loadScripts();
+  const script: Script = {
+    id: crypto.randomUUID(),
+    name,
+    language,
+    source,
+    updatedAt: new Date().toISOString(),
+  };
+  list.push(script);
+  await saveScripts(list);
+  pushSystemLog(`Script created: ${name}`, 'info', 'scripts');
+  res.json(script);
+});
+
+app.put('/api/scripts/:id', async (req, res) => {
+  const settings = await getSettings();
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.scriptsEnabled)) {
+    res.status(403).json({ error: 'Scripts are disabled in Advanced Features.' });
+    return;
+  }
+  const list = await loadScripts();
+  const index = list.findIndex(s => s.id === req.params.id);
+  if (index === -1) { res.status(404).json({ error: 'Script not found.' }); return; }
+  const language = req.body?.language;
+  if (language !== undefined && !isScriptLanguage(language)) {
+    res.status(400).json({ error: 'Unsupported language.' });
+    return;
+  }
+  const next: Script = {
+    ...list[index],
+    name: String(req.body?.name ?? list[index].name).trim() || list[index].name,
+    language: language ?? list[index].language,
+    source: typeof req.body?.source === 'string' ? req.body.source : list[index].source,
+    updatedAt: new Date().toISOString(),
+  };
+  list[index] = next;
+  await saveScripts(list);
+  res.json(next);
+});
+
+app.delete('/api/scripts/:id', async (req, res) => {
+  const settings = await getSettings();
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.scriptsEnabled)) {
+    res.status(403).json({ error: 'Scripts are disabled in Advanced Features.' });
+    return;
+  }
+  const list = await loadScripts();
+  const next = list.filter(s => s.id !== req.params.id);
+  await saveScripts(next);
+  res.json({ ok: true });
+});
+
+app.post('/api/scripts/:id/run', async (req, res) => {
+  const settings = await getSettings();
+  if (!isFeatureEffectivelyEnabled(settings.advancedFeaturesEnabled, settings.scriptsEnabled)) {
+    res.status(403).json({ error: 'Scripts are disabled in Advanced Features.' });
+    return;
+  }
+  const list = await loadScripts();
+  const script = list.find(s => s.id === req.params.id);
+  if (!script) { res.status(404).json({ error: 'Script not found.' }); return; }
+
+  await fs.mkdir(SCRIPTS_TMP_DIR, { recursive: true });
+  const ext = SCRIPT_EXTS[script.language];
+  const fileName = `${script.id}${ext}`;
+  const filePath = path.join(SCRIPTS_TMP_DIR, fileName);
+  await fs.writeFile(filePath, script.source, 'utf-8');
+
+  const startedAt = Date.now();
+
+  function runProcess(command: string, args: string[], cwd: string): Promise<{ stdout: string; stderr: string; exitCode: number | null }> {
+    return new Promise((resolve) => {
+      execFile(command, args, { cwd, timeout: 20000, windowsHide: true, maxBuffer: 512 * 1024 }, (error, stdout, stderr) => {
+        const exitCode = error?.code === undefined ? 0 : Number((error as any).code) || null;
+        resolve({
+          stdout: String(stdout || ''),
+          stderr: String(stderr || (error ? (error as any).message : '')),
+          exitCode,
+        });
+      });
+    });
+  }
+
+  try {
+    let result: { stdout: string; stderr: string; exitCode: number | null };
+    if (script.language === 'python') {
+      const python = process.platform === 'win32' ? 'python' : 'python3';
+      result = await runProcess(python, [filePath], SCRIPTS_TMP_DIR);
+    } else if (script.language === 'javascript') {
+      result = await runProcess('node', [filePath], SCRIPTS_TMP_DIR);
+    } else {
+      const exeName = script.id + (process.platform === 'win32' ? '.exe' : '');
+      const exePath = path.join(SCRIPTS_TMP_DIR, exeName);
+      const compile = await runProcess('rustc', [filePath, '-o', exePath], SCRIPTS_TMP_DIR);
+      if (compile.exitCode !== 0) {
+        result = compile;
+      } else {
+        result = await runProcess(exePath, [], SCRIPTS_TMP_DIR);
+        try { await fs.unlink(exePath); } catch { /* ignore */ }
+      }
+    }
+    const elapsedMs = Date.now() - startedAt;
+    if (result.exitCode !== 0) pushAlert('warning', 'scripts', `Script "${script.name}" exited with code ${result.exitCode}`);
+    res.json({ ok: result.exitCode === 0, elapsedMs, ...result });
+  } catch (error) {
+    res.status(500).json({ error: `Could not run script: ${(error as any)?.message || error}` });
+  } finally {
+    try { await fs.unlink(filePath); } catch { /* ignore */ }
+  }
+});
+
+/**
+ * Alert center: lists in-memory alerts, supports mark-as-read, and lets the
+ * user clear the whole list. Fed by pushAlert() and by any pushSystemLog with
+ * type "error".
+ */
+app.get('/api/alerts', async (req, res) => {
+  const settings = await getSettings();
+  if (!settings.alertsEnabled) {
+    res.json({ alerts: [], unread: 0 });
+    return;
+  }
+  const unread = alerts.filter(a => !a.read).length;
+  res.json({ alerts, unread });
+});
+
+app.post('/api/alerts/:id/read', async (req, res) => {
+  const alert = alerts.find(a => a.id === req.params.id);
+  if (!alert) { res.status(404).json({ error: 'Alert not found.' }); return; }
+  alert.read = true;
+  res.json({ ok: true });
+});
+
+app.post('/api/alerts/read-all', async (req, res) => {
+  for (const alert of alerts) alert.read = true;
+  res.json({ ok: true });
+});
+
+app.post('/api/alerts/clear', async (req, res) => {
+  alerts.length = 0;
+  res.json({ ok: true });
 });
 
 /**
@@ -1354,6 +1567,21 @@ app.post('/api/apps/import', async (req, res) => {
   }
 });
 
+/**
+ * Bulk auto-start selection. Takes { ids: string[] } and sets `autoStart: true`
+ * on those instances and `false` on every other. Fed by the auto-start dialog
+ * in Settings > General.
+ */
+app.put('/api/apps/auto-start', async (req, res) => {
+  const rawIds = Array.isArray(req.body?.ids) ? req.body.ids : [];
+  const selected = new Set(rawIds.map((id: unknown) => String(id)));
+  const apps = await getApps();
+  const next = apps.map(app => ({ ...app, autoStart: selected.has(app.id) }));
+  await saveApps(next);
+  pushSystemLog(`Auto-start updated: ${selected.size} instance(s)`, 'info', 'auto-start');
+  res.json({ ok: true, ids: Array.from(selected) });
+});
+
 app.post('/api/apps', async (req, res) => {
   const advancedEnabled = Boolean(req.body.advancedEnabled);
   const useInternalFolder = Boolean(req.body.useInternalFolder);
@@ -1362,6 +1590,7 @@ app.post('/api/apps', async (req, res) => {
     id,
     ...req.body,
     enabled: req.body.enabled !== false,
+    autoStart: Boolean(req.body.autoStart),
     advancedEnabled,
     useInternalFolder,
     internalFolder: useInternalFolder
@@ -1403,6 +1632,7 @@ app.put('/api/apps/:id', async (req, res) => {
     internalFolder: useInternalFolder
       ? sanitizeInternalFolderName(String(req.body.internalFolder || current.internalFolder || id))
       : String(req.body.internalFolder || current.internalFolder || ''),
+    autoStart: Boolean(req.body.autoStart),
     dependsOn: req.body.dependsOn || [],
     shell: req.body.shell,
     id,
@@ -1479,6 +1709,61 @@ app.post('/api/apps/:id/stop', async (req, res) => {
   res.status(400).json({ error: 'Not running' });
 });
 
+/**
+ * Launches the instance's command inside the OS's default terminal window,
+ * detached from the panel process. Useful when the user wants to see richer
+ * output (colors, TTY prompts) than the panel's embedded log viewer supports.
+ */
+app.post('/api/apps/:id/open-terminal', async (req, res) => {
+  const apps = await getApps();
+  const appConfig = apps.find(a => a.id === req.params.id);
+  if (!appConfig) { res.status(404).json({ error: 'App not found' }); return; }
+
+  const cwd = resolveInstanceCwd(appConfig);
+  const argsText = appConfig.args ? ` ${appConfig.args}` : '';
+  const commandLine = `${appConfig.command}${argsText}`;
+
+  try {
+    if (process.platform === 'win32') {
+      // "start" opens a new cmd window that stays after the command exits.
+      spawn('cmd', ['/c', 'start', '""', 'cmd', '/k', commandLine], {
+        cwd,
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: false,
+      }).unref();
+    } else if (process.platform === 'darwin') {
+      spawn('osascript', ['-e', `tell app "Terminal" to do script "cd ${JSON.stringify(cwd)} && ${commandLine}"`], {
+        detached: true,
+        stdio: 'ignore',
+      }).unref();
+    } else {
+      // Try a few common Linux terminals; the first one found runs.
+      const attempts = [
+        ['x-terminal-emulator', ['-e', 'sh', '-c', `cd ${JSON.stringify(cwd)} && ${commandLine}; exec sh`]],
+        ['gnome-terminal', ['--', 'sh', '-c', `cd ${JSON.stringify(cwd)} && ${commandLine}; exec sh`]],
+        ['xterm', ['-e', `cd ${JSON.stringify(cwd)} && ${commandLine}; exec sh`]],
+      ] as const;
+      let launched = false;
+      for (const [cmd, args] of attempts) {
+        try {
+          spawn(cmd, args as unknown as string[], { detached: true, stdio: 'ignore' }).unref();
+          launched = true;
+          break;
+        } catch { /* try next */ }
+      }
+      if (!launched) {
+        res.status(500).json({ error: 'No supported terminal emulator found (tried x-terminal-emulator, gnome-terminal, xterm).' });
+        return;
+      }
+    }
+    pushSystemLog(`Opened terminal for ${appConfig.name}`, 'system', appConfig.id);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: `Could not open terminal: ${(error as any)?.message || error}` });
+  }
+});
+
 app.get('/api/system-logs', (req, res) => {
   res.json(systemLogHistory.slice().reverse());
 });
@@ -1548,6 +1833,24 @@ async function startServer() {
 
   app.listen(effectivePort, effectiveHost, () => {
     console.log(`Server running on http://${effectiveHost}:${effectivePort}`);
+    // Auto-start any enabled instances flagged for it. Failures raise alerts
+    // but never block startup — the panel must always be reachable.
+    void (async () => {
+      try {
+        const apps = await getApps();
+        const autoStartable = apps.filter(app => app.autoStart && app.enabled !== false);
+        for (const app of autoStartable) {
+          try {
+            await startConfiguredApp(app.id, apps);
+            pushSystemLog(`Auto-started instance: ${app.name}`, 'system', app.id);
+          } catch (error) {
+            pushSystemLog(`Auto-start failed for ${app.name}: ${(error as any)?.message || error}`, 'error', app.id);
+          }
+        }
+      } catch (error) {
+        pushSystemLog(`Auto-start pass failed: ${(error as any)?.message || error}`, 'error', 'auto-start');
+      }
+    })();
   });
 }
 

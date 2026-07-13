@@ -20,6 +20,8 @@ export function getDefaultSettings(): ProgramSettingsFile {
     webServerEnabled: false,
     webServerPort: 8080,
     webServerRootFolder: '',
+    scriptsEnabled: false,
+    alertsEnabled: true,
   };
 }
 
@@ -86,6 +88,8 @@ export function publicSettings(settings: ProgramSettingsFile) {
     webServerEnabled: normalizeFeatureFlag(settings.webServerEnabled, false),
     webServerPort: normalizeInternalApiPort(settings.webServerPort, 8080) || 8080,
     webServerRootFolder: String(settings.webServerRootFolder || '').trim(),
+    scriptsEnabled: normalizeFeatureFlag(settings.scriptsEnabled, false),
+    alertsEnabled: normalizeFeatureFlag(settings.alertsEnabled, true),
   };
 }
 

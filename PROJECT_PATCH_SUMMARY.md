@@ -4,9 +4,22 @@ This file summarizes the main project changes so future GitHub commits can be pr
 
 ## Current version
 
-- Version: 2.9.0
-- Date: 2026-07-30
-- Main area: internal folder for instance files, so the panel stops reaching into arbitrary user directories.
+- Version: 3.0.0
+- Date: 2026-08-06
+- Main area: milestone 3.0 — script runner, auto-start, alert center, and multi-platform packaging.
+
+## 3.0.0
+
+- Added a **general script runner** advanced feature. Users can save Python, JavaScript, and Rust snippets and run them from the dashboard. Sources persist in `scripts.json`; execution uses ephemeral files under the internal folder and captures stdout, stderr, exit code, and elapsed time.
+- Added an **auto-start** flag on each instance. On server boot, all enabled instances with `autoStart: true` are launched in dependency order; failures raise alerts but never block panel startup.
+- Added an **alert center**: bell icon sits in the top bar next to the language selector, with an unread badge that polls the backend. Errors from `pushSystemLog` and warnings from scripts populate the list with severity, source, timestamp, and mark-as-read state.
+- Added an **auto-start selector** in Settings > General: a popup lets the user pick which instances should launch with the panel, with a live badge list of the current selection shown below the button. Backed by a new `PUT /api/apps/auto-start` bulk endpoint.
+- Added a **terminal three-dot menu** on the log panel: detach into a floating window (`?floating=<id>`), open the command in the OS's default terminal (`POST /api/apps/:id/open-terminal`, cross-platform), or restart the terminal.
+- The **Advanced Features tab** now hides entirely from Settings when the master toggle is off; the panel auto-redirects to General if the tab was active when it disappears.
+- Added **multi-platform packaging**: `electron-builder` targets Windows (portable), macOS (`dir`), and Linux (`AppImage`); a POSIX launcher (`abrir-painel.sh`) mirrors the existing Windows batch file; `scripts/package-portable.cjs` refuses to run outside Windows with a clear message.
+- New backend endpoints: `GET/POST/PUT/DELETE /api/scripts`, `POST /api/scripts/:id/run`, `GET /api/alerts`, `POST /api/alerts/:id/read`, `POST /api/alerts/read-all`, `POST /api/alerts/clear`. Scripts gate on both the master and individual feature flags; alert center honours its own flag.
+- Translations in six languages (en, pt, zh, de, es, ja) for the new sidebar entries, feature toggles, form field, and patch notes.
+- Updated application versioning to 3.0.0.
 
 ## 2.9.0
 

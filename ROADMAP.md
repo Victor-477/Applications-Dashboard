@@ -32,15 +32,16 @@ Planned work between the current 2.6.0 release and the 3.0.0 milestone. Each ver
 - [x] Import/export normalizer preserves `useInternalFolder` and `internalFolder`.
 - [x] Translations, patch notes, version bump.
 
-## v3.0 — Scripts, autostart, alerts, multi-platform
+## v3.0 — Scripts, autostart, alerts, multi-platform ✅
 
 **Focus:** big-picture upgrade — this is the milestone release.
 
-- [ ] **General script runner** — the app can execute stand-alone scripts (not tied to a specific instance) written in **Python**, **JavaScript**, or **Rust**, from a dedicated page.
-- [ ] **Auto-start** — each instance can be flagged to start automatically when the panel launches; the app respects a defined order for dependencies.
-- [ ] **Alert center** — a centralised UI for system and instance errors, with severity, timestamp, and a "mark as read" action.
-- [ ] **Multi-platform** — the packaging pipeline and the runtime support **Linux** and **macOS** in addition to Windows (portable and native launchers per platform).
-- [ ] Translations, patch notes, version bump to 3.0.0.
+- [x] **General script runner** — the app executes stand-alone scripts (not tied to a specific instance) written in **Python**, **JavaScript**, or **Rust**, from a dedicated page.
+- [x] **Auto-start** — each instance can be flagged to start automatically when the panel launches; the app respects a defined order for dependencies.
+- [x] **Alert center** — a centralised UI for system and instance errors, with severity, timestamp, and a "mark as read" action.
+- [x] **Multi-platform** — the packaging pipeline (`electron-builder`) declares Windows, macOS, and Linux targets, and a POSIX launcher (`abrir-painel.sh`) mirrors the existing Windows batch file.
+- [x] **UX polish** — alert bell moved to the top bar; auto-start selector popup in Settings > General; terminal three-dot menu with detach/system-terminal/restart; Advanced Features tab hidden when the master toggle is off.
+- [x] Translations, patch notes, version bump to 3.0.0.
 
 ## Working notes
 

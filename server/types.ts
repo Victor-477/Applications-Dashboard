@@ -21,6 +21,27 @@ export interface AppConfig {
   advancedCommand?: string;
   advancedArgs?: string;
   advancedShell?: boolean;
+  /** Start this instance automatically when the panel boots. */
+  autoStart?: boolean;
+}
+
+export type ScriptLanguage = 'python' | 'javascript' | 'rust';
+
+export interface Script {
+  id: string;
+  name: string;
+  language: ScriptLanguage;
+  source: string;
+  updatedAt: string;
+}
+
+export interface Alert {
+  id: string;
+  timestamp: string;
+  severity: 'info' | 'warning' | 'error';
+  source: string;
+  message: string;
+  read: boolean;
 }
 
 export interface ProgramSettingsFile {
@@ -48,6 +69,10 @@ export interface ProgramSettingsFile {
   webServerPort: number;
   /** Absolute path of the folder currently served by the static web server. */
   webServerRootFolder: string;
+  /** Advanced feature toggle for the general script runner (Python/JS/Rust). */
+  scriptsEnabled: boolean;
+  /** Individual toggle for the built-in alert center. */
+  alertsEnabled: boolean;
 }
 
 export interface SystemLogEntry {

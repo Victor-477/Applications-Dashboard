@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useMemo, lazy, Suspense, type CSSProperties } from 'react';
-import { ChevronDown, FileText, Globe, Globe2, Home, Info, Layers, MessageSquare, Plus, Radar, Settings, Zap } from 'lucide-react';
+import { Bell, ChevronDown, Code, FileText, Globe, Globe2, Home, Info, Layers, MessageSquare, Plus, Radar, Settings, Zap } from 'lucide-react';
 import AppCard from './components/AppCard';
 import AppForm from './components/AppForm';
 import AppListItem from './components/AppListItem';
@@ -17,6 +17,8 @@ const AIChatView = lazy(() => import('./components/AIChatView'));
 const ApiTesterView = lazy(() => import('./components/ApiTesterView'));
 const ConnectivityTesterView = lazy(() => import('./components/ConnectivityTesterView'));
 const WebServerView = lazy(() => import('./components/WebServerView'));
+const ScriptsView = lazy(() => import('./components/ScriptsView'));
+const AlertCenterView = lazy(() => import('./components/AlertCenterView'));
 const PatchFilesView = lazy(() => import('./components/PatchFilesView'));
 const SettingsView = lazy(() => import('./components/SettingsView'));
 import type { AppState, AppConfig, AppView, LogLine, ProgramSettings, SettingsTab } from './types';
@@ -79,7 +81,23 @@ const defaultProgramSettings: ProgramSettings = {
   webServerEnabled: false,
   webServerPort: 8080,
   webServerRootFolder: '',
+  scriptsEnabled: false,
+  alertsEnabled: true,
 };
+
+/**
+ * When the URL carries "?floating=<appId>" the app renders a minimal shell
+ * containing just the LogViewer for that instance. This is the target of the
+ * "Detach terminal" menu action — a compact popup window with only the log.
+ */
+function getFloatingAppId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return new URL(window.location.href).searchParams.get('floating');
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const [apps, setApps] = useState<AppState[]>([]);
@@ -104,6 +122,23 @@ export default function App() {
     hasSidePanelOpen ? 'basis-[49%]' : 'basis-full',
     currentView === 'services' ? 'overflow-y-auto' : 'flex min-h-0 flex-col overflow-hidden',
   ].join(' ');
+  // Poll the alert center for unread count so the sidebar badge stays fresh.
+  const [alertsUnread, setAlertsUnread] = useState(0);
+  useEffect(() => {
+    if (!programSettings.alertsEnabled) { setAlertsUnread(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch('/api/alerts');
+        const data = await res.json();
+        if (!cancelled) setAlertsUnread(Number(data?.unread) || 0);
+      } catch { /* ignore */ }
+    };
+    load();
+    const timer = window.setInterval(load, 6000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [programSettings.alertsEnabled]);
+
   // Redirect away from a feature view whose feature was just disabled, so the
   // user cannot end up on a hidden page (e.g. AI Chat while aiChatEnabled=false).
   useEffect(() => {
@@ -115,7 +150,9 @@ export default function App() {
     if (currentView === 'apiTester' && !(master && programSettings.apiTesterEnabled)) setCurrentView('services');
     if (currentView === 'connectivity' && !(master && programSettings.connectivityTesterEnabled)) setCurrentView('services');
     if (currentView === 'webServer' && !(master && programSettings.webServerEnabled)) setCurrentView('services');
-  }, [currentView, programSettings.advancedFeaturesEnabled, programSettings.aiChatEnabled, programSettings.apiTesterEnabled, programSettings.connectivityTesterEnabled, programSettings.webServerEnabled]);
+    if (currentView === 'scripts' && !(master && programSettings.scriptsEnabled)) setCurrentView('services');
+    if (currentView === 'alerts' && !programSettings.alertsEnabled) setCurrentView('services');
+  }, [currentView, programSettings.advancedFeaturesEnabled, programSettings.aiChatEnabled, programSettings.apiTesterEnabled, programSettings.connectivityTesterEnabled, programSettings.webServerEnabled, programSettings.scriptsEnabled, programSettings.alertsEnabled]);
 
   const themeVars = useMemo<CSSProperties>(() => ({
     '--app-accent': programSettings.accentColor,
@@ -329,6 +366,20 @@ export default function App() {
     setEditingApp(null);
   };
 
+  const openScriptsView = () => {
+    setCurrentView('scripts');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
+  const openAlertCenterView = () => {
+    setCurrentView('alerts');
+    setSelectedAppId(null);
+    setIsFormOpen(false);
+    setEditingApp(null);
+  };
+
   const openPatchFilesView = () => {
     setCurrentView('patches');
     setSelectedAppId(null);
@@ -356,6 +407,29 @@ export default function App() {
     alert(t.homepageMissing);
     openGeneralSettings();
   };
+
+  // Floating log window: render only the LogViewer for the requested instance
+  // and skip the entire dashboard chrome.
+  const floatingAppId = getFloatingAppId();
+  if (floatingAppId) {
+    const floatingApp = apps.find(a => a.config.id === floatingAppId);
+    return (
+      <div className="flex h-screen flex-col bg-[#1d1d1d]" style={themeVars}>
+        {floatingApp ? (
+          <LogViewer
+            app={floatingApp}
+            logs={logs[floatingApp.config.id] || []}
+            onClose={() => window.close()}
+            t={t}
+          />
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
+            {t.noSelectedAppTitle}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -411,6 +485,22 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {programSettings.alertsEnabled && (
+            <button
+              type="button"
+              onClick={openAlertCenterView}
+              className={`relative flex h-10 w-10 items-center justify-center rounded-md transition-colors hover:bg-gray-100 ${currentView === 'alerts' ? 'text-blue-600' : 'text-gray-700'}`}
+              title={t.nav.alerts}
+            >
+              <Bell className="h-5 w-5" />
+              {alertsUnread > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {alertsUnread > 9 ? '9+' : alertsUnread}
+                </span>
+              )}
+            </button>
+          )}
 
           <button
             onClick={openCreateForm}
@@ -486,6 +576,17 @@ export default function App() {
                 <Globe className="h-5 w-5" />
               </button>
             )}
+            {programSettings.advancedFeaturesEnabled && programSettings.scriptsEnabled && (
+              <button
+                type="button"
+                onClick={openScriptsView}
+                className={`relative flex h-10 w-full items-center justify-center transition-colors hover:text-blue-600 ${currentView === 'scripts' ? 'text-blue-600' : 'text-gray-700'}`}
+                title={t.nav.scripts}
+              >
+                {currentView === 'scripts' && <span className="absolute left-0 h-10 w-[3px] rounded-r bg-blue-500" />}
+                <Code className="h-5 w-5" />
+              </button>
+            )}
             <button
               type="button"
               onClick={openPatchFilesView}
@@ -550,6 +651,14 @@ export default function App() {
             ) : currentView === 'webServer' ? (
               <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
                 <WebServerView t={t} />
+              </Suspense>
+            ) : currentView === 'scripts' ? (
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <ScriptsView t={t} />
+              </Suspense>
+            ) : currentView === 'alerts' ? (
+              <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
+                <AlertCenterView t={t} />
               </Suspense>
             ) : currentView === 'patches' ? (
               <Suspense fallback={<div className="flex flex-1 items-center justify-center text-sm text-gray-400">…</div>}>
@@ -641,7 +750,7 @@ export default function App() {
       </main>
 
       <footer className="flex h-[34px] shrink-0 items-center justify-between bg-black px-3 text-xs font-semibold text-white">
-        <span>Control Panel - Applications Dashboard v2.9.0 - Made By Victor Samuel</span>
+        <span>Control Panel - Applications Dashboard v3.0.0 - Made By Victor Samuel</span>
         <span className="flex items-center gap-5">
           <span>Running: {statusSummary.running}</span>
           <span>Stopped: {statusSummary.stopped}</span>

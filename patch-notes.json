@@ -1,5 +1,20 @@
 [
   {
+    "version": "3.0.0",
+    "date": "2026-08-06",
+    "title": "Scripts, auto-start, alert center, multi-platform",
+    "changes": [
+      "New advanced feature: general script runner for Python, JavaScript, and Rust snippets with save, run, and output inspection.",
+      "New auto-start flag on each instance: enabled instances flagged for auto-start launch automatically when the panel boots, respecting dependency order.",
+      "New auto-start section in Settings > General with a popup selector and a live list of instances currently set to auto-start.",
+      "Alert center bell moved to the top bar next to the language selector, with the unread badge kept in sync.",
+      "Terminal panel three-dot menu now opens actions to detach the log into a floating window, launch the command in the system terminal, and restart the terminal.",
+      "Advanced Features tab now hides completely from Settings when the master toggle is off, so the disabled area cannot be opened.",
+      "Multi-platform packaging: electron-builder now declares macOS (dir/AppImage) and Linux (AppImage) targets, and a POSIX launcher script ships beside the existing Windows batch file.",
+      "Updated application versioning to 3.0.0."
+    ]
+  },
+  {
     "version": "2.9.0",
     "date": "2026-07-30",
     "title": "Internal instance folder",

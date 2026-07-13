@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, Globe, Globe2, LayoutGrid, List, MessageSquare, Moon, Palette, Pencil, Radar, RefreshCw, Server, Settings, Sun, Trash2, Upload, Zap } from 'lucide-react';
+import { Bell, Code, Download, Globe, Globe2, LayoutGrid, List, MessageSquare, Moon, Palette, Pencil, Play, Radar, RefreshCw, Server, Settings, Sun, Trash2, Upload, X, Zap } from 'lucide-react';
 import ImportInstancesDialog from './settings/ImportInstancesDialog';
 import LogsExportDialog, { type ExportFormat } from './settings/LogsExportDialog';
 import type { ChangeEvent, FormEvent } from 'react';
@@ -57,6 +57,8 @@ export default function SettingsView({
     internalApiRemoteAccess: currentProgramSettings.internalApiRemoteAccess,
     advancedFeaturesEnabled: currentProgramSettings.advancedFeaturesEnabled,
     webServerEnabled: currentProgramSettings.webServerEnabled,
+    scriptsEnabled: currentProgramSettings.scriptsEnabled,
+    alertsEnabled: currentProgramSettings.alertsEnabled,
   });
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
@@ -78,6 +80,9 @@ export default function SettingsView({
   const [internalFolder, setInternalFolder] = useState<{ path: string; entries: Array<{ name: string; isDirectory: boolean; size: number }> } | null>(null);
   const [internalFolderError, setInternalFolderError] = useState('');
   const [newInternalFolderName, setNewInternalFolderName] = useState('');
+  const [isAutoStartOpen, setIsAutoStartOpen] = useState(false);
+  const [autoStartDraft, setAutoStartDraft] = useState<Set<string>>(new Set());
+  const [autoStartError, setAutoStartError] = useState('');
 
   const summary = useMemo(() => {
     return apps.reduce(
@@ -134,6 +139,8 @@ export default function SettingsView({
         internalApiRemoteAccess: Boolean(settings.internalApiRemoteAccess),
         advancedFeaturesEnabled: settings.advancedFeaturesEnabled !== false,
         webServerEnabled: Boolean(settings.webServerEnabled),
+        scriptsEnabled: Boolean(settings.scriptsEnabled),
+        alertsEnabled: settings.alertsEnabled !== false,
       }));
     } finally {
       setIsLoading(false);
@@ -162,6 +169,8 @@ export default function SettingsView({
       internalApiRemoteAccess: currentProgramSettings.internalApiRemoteAccess,
       advancedFeaturesEnabled: currentProgramSettings.advancedFeaturesEnabled,
       webServerEnabled: currentProgramSettings.webServerEnabled,
+      scriptsEnabled: currentProgramSettings.scriptsEnabled,
+      alertsEnabled: currentProgramSettings.alertsEnabled,
     }));
     setCustomColorDraft(currentProgramSettings.accentColor.replace('#', ''));
   }, [
@@ -176,15 +185,30 @@ export default function SettingsView({
     currentProgramSettings.internalApiRemoteAccess,
     currentProgramSettings.advancedFeaturesEnabled,
     currentProgramSettings.webServerEnabled,
+    currentProgramSettings.scriptsEnabled,
+    currentProgramSettings.alertsEnabled,
   ]);
 
+  // The Advanced Features tab disappears entirely when the master toggle is
+  // off: the user cannot open it, cannot see the individual toggles inside,
+  // and any deep link redirects to General.
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'apps', label: t.settings.enableApps },
     { id: 'logs', label: t.settings.systemLogs },
     { id: 'general', label: t.settings.general },
     { id: 'style', label: t.settings.style },
-    { id: 'advanced', label: t.settings.advanced },
+    ...(currentProgramSettings.advancedFeaturesEnabled
+      ? [{ id: 'advanced' as SettingsTab, label: t.settings.advanced }]
+      : []),
   ];
+
+  // If the master toggle flips off while the Advanced tab is active, bounce
+  // the user to the General tab so the panel never renders a hidden tab body.
+  useEffect(() => {
+    if (activeTab === 'advanced' && !currentProgramSettings.advancedFeaturesEnabled) {
+      setActiveTab('general');
+    }
+  }, [activeTab, currentProgramSettings.advancedFeaturesEnabled]);
 
   const accentSwatches = [
     { color: '#009dea', label: t.settings.defaultBlue },
@@ -356,6 +380,40 @@ export default function SettingsView({
 
   const handleHomepagePreview = () => {
     window.open('/internal-homepage', '_blank', 'noopener,noreferrer');
+  };
+
+  // Auto-start selector: opens a popup to pick which instances should launch
+  // with the panel. Persists the selection through a bulk PUT and refreshes
+  // the local instance list so the "current auto-start" chips update.
+  const openAutoStartDialog = () => {
+    setAutoStartDraft(new Set(apps.filter(a => a.config.autoStart).map(a => a.config.id)));
+    setAutoStartError('');
+    setIsAutoStartOpen(true);
+  };
+
+  const toggleAutoStartDraft = (id: string) => {
+    setAutoStartDraft(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const saveAutoStart = async () => {
+    setAutoStartError('');
+    try {
+      const res = await fetch('/api/apps/auto-start', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(autoStartDraft) }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setIsAutoStartOpen(false);
+      await onAppsChanged();
+      await loadSettings();
+    } catch {
+      setAutoStartError(t.settings.autoStartSaveError);
+    }
   };
 
   const refreshInternalFolder = async () => {
@@ -758,6 +816,38 @@ export default function SettingsView({
 
               <section className="border border-gray-200 bg-white">
                 <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
+                  <h3 className="text-sm font-bold text-gray-900">{t.settings.autoStartCategory}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{t.settings.autoStartCategoryDescription}</p>
+                </div>
+                <div className="space-y-3 px-5 py-5">
+                  <button
+                    type="button"
+                    onClick={openAutoStartDialog}
+                    className="flex items-center gap-2 rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+                  >
+                    <Play className="h-4 w-4 fill-current" />
+                    {t.settings.autoStartSelect}
+                  </button>
+                  <div>
+                    <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-gray-500">{t.settings.autoStartCurrent}</span>
+                    {apps.some(app => app.config.autoStart) ? (
+                      <ul className="flex flex-wrap gap-2">
+                        {apps.filter(app => app.config.autoStart).map(app => (
+                          <li key={app.config.id} className="flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                            <Play className="h-3 w-3 fill-current" />
+                            {app.config.name}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-xs font-medium text-gray-500">{t.settings.autoStartEmpty}</p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className="border border-gray-200 bg-white">
+                <div className="border-b border-gray-200 bg-gray-50 px-5 py-4">
                   <h3 className="text-sm font-bold text-gray-900">{t.settings.instancesCategory}</h3>
                   <p className="mt-1 text-sm text-gray-500">{t.settings.instancesCategoryDescription}</p>
                 </div>
@@ -838,7 +928,7 @@ export default function SettingsView({
                   <Settings className="h-5 w-5 text-blue-500" />
                   <div>
                     <p className="text-sm font-semibold">Control Panel - Applications Dashboard</p>
-                    <p className="mt-1 text-xs font-medium text-gray-500">v2.9.0</p>
+                    <p className="mt-1 text-xs font-medium text-gray-500">v3.0.0</p>
                   </div>
                 </div>
               </section>
@@ -1111,6 +1201,42 @@ export default function SettingsView({
                       <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableWebServerDescription}</p>
                     </div>
                   </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.scriptsEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, scriptsEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.enableScripts}</span>
+                        <span className={`text-xs font-bold ${settingsForm.scriptsEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.scriptsEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableScriptsDescription}</p>
+                    </div>
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 border border-gray-200 bg-white px-4 py-4 transition-colors hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={settingsForm.alertsEnabled}
+                      onChange={event => setSettingsForm({ ...settingsForm, alertsEnabled: event.target.checked })}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-bold text-gray-900">{t.settings.enableAlerts}</span>
+                        <span className={`text-xs font-bold ${settingsForm.alertsEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                          {settingsForm.alertsEnabled ? t.settings.featureOn : t.settings.featureOff}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-medium text-gray-500">{t.settings.enableAlertsDescription}</p>
+                    </div>
+                  </label>
                 </div>
               </section>
 
@@ -1241,6 +1367,28 @@ export default function SettingsView({
                   </div>
                 </div>
               </section>
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Code className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.enableScripts}</p>
+                    <p className={`mt-1 text-xs font-bold ${settingsForm.scriptsEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {settingsForm.scriptsEnabled ? t.settings.featureOn : t.settings.featureOff}
+                    </p>
+                  </div>
+                </div>
+              </section>
+              <section className="border border-gray-200 bg-white p-5">
+                <div className="flex items-center gap-3 text-gray-700">
+                  <Bell className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-semibold">{t.settings.enableAlerts}</p>
+                    <p className={`mt-1 text-xs font-bold ${settingsForm.alertsEnabled ? 'text-green-600' : 'text-gray-400'}`}>
+                      {settingsForm.alertsEnabled ? t.settings.featureOn : t.settings.featureOff}
+                    </p>
+                  </div>
+                </div>
+              </section>
               {!settingsForm.advancedFeaturesEnabled && (
                 <section className="border border-amber-200 bg-amber-50 p-4">
                   <p className="text-xs font-semibold text-amber-800">{t.settings.advancedMasterHint}</p>
@@ -1268,6 +1416,72 @@ export default function SettingsView({
           onExportLimitModeChange={setExportLimitMode}
           onExportSourceChange={setExportSource}
         />
+      )}
+
+      {isAutoStartOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">{t.settings.autoStartDialogTitle}</h3>
+                <p className="mt-0.5 text-xs text-gray-500">{t.settings.autoStartDialogHelp}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAutoStartOpen(false)}
+                className="flex h-8 w-8 items-center justify-center rounded text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                title={t.settings.cancel || 'Cancel'}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-80 overflow-auto px-5 py-4">
+              {apps.length === 0 ? (
+                <p className="py-6 text-center text-xs text-gray-500">{t.settings.autoStartNoInstances}</p>
+              ) : (
+                <ul className="space-y-2">
+                  {apps.map(app => (
+                    <li key={app.config.id}>
+                      <label className="flex cursor-pointer items-center justify-between gap-3 rounded border border-gray-200 bg-white px-3 py-2 transition-colors hover:bg-gray-50">
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-semibold text-gray-800">{app.config.name}</span>
+                          <span className="mt-0.5 block truncate font-mono text-[11px] text-gray-500">
+                            {app.config.command} {app.config.args}
+                          </span>
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          checked={autoStartDraft.has(app.config.id)}
+                          onChange={() => toggleAutoStartDraft(app.config.id)}
+                        />
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {autoStartError && <p className="mt-3 text-xs font-semibold text-red-600">{autoStartError}</p>}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-gray-200 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setIsAutoStartOpen(false)}
+                className="rounded border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                {t.settings.autoStartCancel}
+              </button>
+              <button
+                type="button"
+                onClick={saveAutoStart}
+                className="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
+              >
+                {t.settings.autoStartConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {isImportOpen && (
