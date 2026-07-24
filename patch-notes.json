@@ -10,7 +10,7 @@
       "Alert center bell moved to the top bar next to the language selector, with the unread badge kept in sync.",
       "Terminal panel three-dot menu now opens actions to detach the log into a floating window, launch the command in the system terminal, and restart the terminal.",
       "Advanced Features tab now hides completely from Settings when the master toggle is off, so the disabled area cannot be opened.",
-      "Multi-platform packaging: electron-builder now declares macOS (dir/AppImage) and Linux (AppImage) targets, and a POSIX launcher script ships beside the existing Windows batch file.",
+      "Multi-platform packaging: new `package:linux` (`tar.gz`) and `package:mac` (`.app` dir) scripts, GitHub Actions workflow that builds Windows/Linux/macOS on their native runners, and a POSIX launcher script beside the existing Windows batch file. macOS builds require a macOS host — an electron-builder 26 requirement.",
       "Updated application versioning to 3.0.0."
     ]
   },

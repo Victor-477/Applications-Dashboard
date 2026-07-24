@@ -36,29 +36,47 @@ npx electron scripts\capture-readme-screenshots.cjs
 
 ## 3. Package
 
+### Windows (portable)
+
 Generate the portable build and ZIP:
 
 ```bash
 npm run package:win:zip
 ```
 
-Output folder:
+Output folder: `release/APPDashboard/` (with `APPDashboard.exe` inside).
+ZIP file: `release/APPDashboard-windows-portable.zip`.
 
-```text
-release/APPDashboard/
+### Linux (tar.gz)
+
+From any host (Windows, Linux, macOS):
+
+```bash
+npm run package:linux
 ```
 
-ZIP file:
+Output file: `dist/APPDashboard-linux-x64.tar.gz` (~120 MB). Extract and run `application-dashboard` from inside the folder. On Windows hosts the target is `tar.gz` because `AppImage` needs POSIX symlinks; if you package on Linux itself, `AppImage` also works.
 
-```text
-release/APPDashboard-windows-portable.zip
+### macOS (dir → .app)
+
+`electron-builder` 26 refuses macOS builds from Windows or Linux hosts. You must package on a **macOS** machine or a macOS GitHub Actions runner:
+
+```bash
+npm install
+npm run package:mac
 ```
 
-Executable:
+Output folder: `dist/mac/Applications Dashboard.app`. The app is unsigned (`identity: null`); users can right-click → Open on first launch to bypass Gatekeeper, or you can sign it locally.
 
-```text
-release/APPDashboard/APPDashboard.exe
+### All three at once (from a macOS host)
+
+```bash
+npm run package:all
 ```
+
+### GitHub Actions
+
+For a fully automated three-platform release, use one job per OS runner (`windows-latest`, `ubuntu-latest`, `macos-latest`). Each job runs `npm ci` then its respective `package:*` script and uploads the artifact.
 
 ## 4. Test the Portable App
 

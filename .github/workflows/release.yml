@@ -1,0 +1,58 @@
+# Cross-platform release builds. Triggered manually so a maintainer can pick
+# the version tag they want to attach to the artifacts. Each job runs on its
+# matching OS runner because electron-builder blocks cross-OS packaging.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to attach to artifacts (e.g. v3.0.0)'
+        required: true
+        default: 'v3.0.0'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run package:win:zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ inputs.tag }}
+          path: release/APPDashboard-windows-portable.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run package:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ inputs.tag }}
+          path: dist/APPDashboard-linux-*.tar.gz
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run package:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ inputs.tag }}
+          path: dist/mac/*.app
